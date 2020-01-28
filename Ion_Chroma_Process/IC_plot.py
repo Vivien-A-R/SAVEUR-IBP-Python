@@ -139,7 +139,8 @@ def peakfinder(snippet):
     #t_Nitrite = 7.47
     #t_Br = 9.52
     #t_Nitrate = 10.97
-
+    
+    ## TODO: Return whatever analyte peaks are asked for in the process_chromatogram() call, not just Cl
     cl_peak = []
     for peak in ind_peaks:
         p = snippet.iloc[peak[0]:peak[1]]
@@ -149,7 +150,6 @@ def peakfinder(snippet):
     snippet.drop(['peak'],axis = 1,inplace = True)
     
     return cl_peak, np.mean(y)
-
 
 # Calculate area, height, and full-width at half maximum
 def calc_peakstats(file_raw,cpeak,peak_baseline):
@@ -260,7 +260,7 @@ fit = np.polyfit(df_st.conc_uM,df_st.peak_area,1) ## Todo: Separate standard run
 df_d['conc_uM'] = ((df_d['peak_area'] - fit[1])/fit[0])*df_d['dilution']
 
 # Get only data for good runs
-## TODO: Move this to the end and publish as full data table
+## TODO: Move this to the end and publish as full data table w/ all analytes
 data_reduced = df_d[['name','sample_date','conc_uM']].dropna()
 
 #Save data
@@ -268,12 +268,8 @@ df_d.to_csv(processed_datapath + "IC_2019_sampledata_detailed.csv",index = False
 df_st.to_csv(processed_datapath + "IC_2019_standards.csv",index = False)
 data_reduced.to_csv(processed_datapath + "IC_2019_sampledata_reduced.csv",index = False)
 
-## TODO: Set up runs for all 5 analytes and summarize into one data table
 
-#df_data.sort_values('analysis_time')
-#df_data.sort_values(['dilution','analysis_time'])
-#df_data[df_data.max_cond > 10]
-
+## Testing plotting and process code
 # =============================================================================
 # temp_fn = 'WLW8 3#27#18 10x_Warta-PC_20180420-162626.txt' 
 # rt,sn,fr = process(temp_fn)
