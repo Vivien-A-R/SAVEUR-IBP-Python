@@ -167,6 +167,8 @@ def calc_peakstats(file_raw):
     return peak_area,peakmax-peak_baseline,fwhm
 
 #GMP samples
+analyte = "Cl"
+## TODO: Wrap this in a function with analyte as arg, switch for expected peak time
 analysis_data = []
 files = [filename for filename in allfiles if filename.startswith('WL')]
 
@@ -180,20 +182,19 @@ for fn in files:
     max_cond = max(fr.conductivity)     # Identify the max conductivity to decide whether or not to analyze peaks (useful when there is instrument error)
     datarow = [s_id,s_date,rt_l,dil,max_cond]  # Include metadata in data row
     if(max_cond < 100):                          # If max conductivity reasonable:
-        cpeak, peak_baseline = peakfinder(fr)       # Find Cl peak
-        if(len(cpeak) > 0):                         # If Cl peak exists
+        cpeak, peak_baseline = peakfinder(fr)       # Find analyte peak
+        if(len(cpeak) > 0):                         # If analyte peak exists
             pa, pm, fwhm = calc_peakstats(fr)           # Calculate area, height at max, full width at half max
             print(sn + ": Peak area: " + str(pa))       # Status report
             datarow = datarow + [pa,pm,fwhm]            # Add data row to data file
             plot_chroma(rt_fn,sn,fr)                       # Plot on default axes
-        else:                                       # If no Cl peak:
-            print(sn + ": No Cl peak")                  # status report
-            datarow = datarow + [0,0,0]                 # All zeroes (no detectable Cl, but data is good)
+        else:                                       # If no analyte peak:
+            print(sn + ": No " + analyte + " peak")     # status report
+            datarow = datarow + [0,0,0]                 # All zeroes (no detectable analyte, but data is good)
             #plot_chroma(rt_fn,sn,fr,ym=20)                # Plot with large y axis
     else:                                       # If max conductivity is excessive:
         print(sn + ": No peaks")                    # Status report
         datarow = datarow + [np.nan,np.nan,np.nan]  # All not-a-number (data is bad)
-        #plot_chroma(rt_fn,sn,fr,ym=20)                # Plot on large y axis
     analysis_data = analysis_data + [datarow]   # Add result of chromatogram analyses to data frame
     snp = "_".join(sn.split())
     snp = "-".join(snp.split("/"))
@@ -206,7 +207,7 @@ df_data.columns = ['name','sample_date','analysis_time','dilution','max_cond','p
 df_data.analysis_time=pd.to_datetime(df_data.analysis_time)
 
 
-## Standards
+## Standards; similar process to samples
 standard_data = []
 files = [filename for filename in allfiles if filename.startswith('Standard')]
 for fn in files:
@@ -224,7 +225,7 @@ for fn in files:
             print(sn + ": Peak area: " + str(pa))
             datarow = datarow + [pa,pm,fwhm]
         else:
-            print(sn + ": No Cl peak")
+            print(sn + ": No " + analyte + " peak")
             datarow = datarow + [0,0,0]
         plot_chroma(rt_fn,sn,fr)
     else:
@@ -237,12 +238,13 @@ for fn in files:
     plt.savefig(figures_datapath+figname)
     plt.close()
 
-# I fixed the fucky thing
+# Create dataframe for analyte standards
+## TODO: Calibrate based on runtime (daily std runs correspond to )
 df_standards = pd.DataFrame(standard_data)
 df_standards.columns = ['analyte','conc_uM','analysis_time','max_cond','peak_area','peak_height','fwhm']
-df_standards.analysis_time=pd.to_datetime(df_standards.analysis_time)
+df_standards.analysis_time=pd.to_datetime(df_standards.analysis_time) #Includes 100um Single-anion stds (not needed for calibration but good to have as evidence of peak timing)
 lin_stds = df_standards[df_standards['analyte'] == 'mixedanion'].copy().sort_values(["analysis_time","conc_uM"])
-df_standards = df_standards.sort_values('conc_uM')
+df_standards = lin_stds.sort_values('conc_uM')
 
 #area = conc * fit[0] + fit[1]
 #conc = (area - fit[1])/fit[0]
@@ -250,12 +252,15 @@ fit = np.polyfit(df_standards.conc_uM,df_standards.peak_area,1) ## Todo: Separat
 df_data['conc_uM'] = ((df_data['peak_area'] - fit[1])/fit[0])*df_data['dilution']
 
 # Get only data for good runs
+## TODO: Move this to the end and publish as full data table
 data_reduced = df_data[['name','sample_date','conc_uM']].dropna()
 
 #Save data
 df_data.to_csv(processed_datapath + "IC_2019_sampledata_detailed.csv",index = False)
 df_standards.to_csv(processed_datapath + "IC_2019_standards.csv",index = False)
 data_reduced.to_csv(processed_datapath + "IC_2019_sampledata_reduced.csv",index = False)
+
+## TODO: Set up runs for all 5 analytes and summarize into one data table
 
 #df_data.sort_values('analysis_time')
 #df_data.sort_values(['dilution','analysis_time'])
