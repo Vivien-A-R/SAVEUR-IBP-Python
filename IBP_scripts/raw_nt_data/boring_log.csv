@@ -1,0 +1,49 @@
+depth_cm,WLW1,WLW2,WLW3,WLW4,WLW5,WLW6,WLW7,WLW8,WLW9,WLW10,WLW11,WLW12,WLW14
+2.54,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Brown OL,Brown OL,Brown ML,Black ML,Black ML,Black ML
+5.08,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Brown OL,Brown OL,Brown ML,Black ML,Black ML,Black ML
+7.62,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Brown OL,Black CL,Brown ML,Black ML,Black ML,Black ML
+10.16,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Black ML,Black CL,Brown ML,Black ML,Black ML,Black ML
+12.7,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Black ML,Black CL,Brown ML,Black ML,Black ML,Black ML
+15.24,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Black ML,Black CL,Brown ML,Black ML,Black ML,Black ML
+17.78,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Black ML,Black CL,Brown ML,Black ML,Black ML,Black ML
+20.32,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Black ML,Black CL,Brown ML,Black ML,Black ML,Black ML
+22.86,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Black ML,Black CL,Brown ML,Black ML,Black ML,Black ML
+25.4,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Black ML,Black ML,Brown ML,Black ML,Black ML,Black ML
+27.94,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Black ML,Black ML,Brown ML,Black ML,Black ML,Black ML
+30.48,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Black ML,Black ML,Brown ML,Tan SP,Black ML,Black ML
+33.02,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Black ML,Black ML,Brown ML,Tan SP,Brown ML,Black ML
+35.56,Black CL,Black CL,Black CL,Black ML,Black CL,Black ML,Black CL,Black ML,Black ML,Brown CL,Tan SP,Brown ML,Black ML
+38.1,Black CL,Black CL,Black CL,Black ML,Brown CL,Black ML,Black CL,Black ML,Black ML,Brown CL,Tan SP,Brown ML,Black ML
+40.64,Brown CL,Black CL,Black CL,Black ML,Brown CL,Black ML,Brown SP,Black ML,Black ML,Brown CL,Tan SP,Brown ML,Black ML
+43.18,Brown CL,Black CL,Black CL,Black ML,Brown CL,Tan CL,Brown SP,Tan SP,Black ML,Brown CL,Tan SP,Brown ML,Black ML
+45.72,Brown CL,Brown CL,Gray CH,Black ML,Brown CL,Tan CL,Brown SP,Tan SP,Tan SP,Brown CL,Tan SP,Brown ML,Black ML
+48.26,Brown CL,Brown CL,Gray CH,Black ML,Brown CL,Tan CL,Brown SP,Tan SP,Tan SP,Brown CL,Tan SP,Brown ML,Black ML
+50.8,Brown CL,Brown CL,Gray CH,Black ML,Gray CL,Tan CL,Brown SP,Tan SP,Tan SP,Brown CL,Tan SP,Brown ML,Black ML
+53.34,Brown CL,Brown CL,Gray CH,Tan CL,Gray CL,Tan CL,Brown SP,Tan SP,Tan SP,Brown CL,Tan SP,Brown ML,Brown CL
+55.88,Brown CL,Brown CL,Gray CL,Tan CL,Gray CL,Tan CL,Brown SP,Tan SP,Tan SP,Brown CL,Tan SP,Brown ML,Brown CL
+58.42,Brown CL,Brown CL,Gray CL,Tan CL,Gray CL,Tan CL,Brown SP,Tan SP,Tan SP,Brown CL,Tan SP,Brown ML,Brown CL
+60.96,Brown CL,Brown CL,Gray CL,Tan CL,Gray CL,Tan CL,Brown SP,Tan SP,Tan SP,Brown CL,Tan SP,Brown ML,Brown CL
+63.5,Brown CL,Brown CL,Gray CL,Tan CL,Gray CL,Tan CL,Brown SP,Tan SP,Tan SP,Brown CL,Tan SP,Tan SP,Brown CL
+66.04,Brown CL,Brown CL,Gray CL,Tan CL,Gray CL,Tan CL,Brown SP,Tan SP,Tan SP,Brown CL,Tan SP,Tan SP,Brown CL
+68.58,Brown CL,Brown CL,Gray CL,Tan CL,Gray CL,Tan CL,Brown SP,Tan SP,Tan SP,Brown CL,Tan SP,Tan SP,Brown CL
+71.12,Gray CH,Brown CL,Gray CL,Tan CL,Gray CH,Tan CL,Brown SP,Tan SP,Tan SP,Brown CL,Tan SP,Tan SP,Black CL
+73.66,Gray CH,Brown CL,Gray CL,Tan CL,Gray CH,Tan CL,Brown SP,Tan SP,Tan SP,Brown CL,Tan SP,Tan SP,Black CL
+76.2,Gray CH,Brown CL,Gray CL,Brown CH,Gray CH,Gray CL,Brown CL,Orange SP,Tan SP,Brown CL,Tan SP,Tan SP,Black CL
+78.74,Gray CH,Brown CL,Gray CL,Brown CH,Gray CH,Gray CL,Brown CL,Orange SP,Tan SP,Brown CL,Tan SP,Tan SP,Black CL
+81.28,Gray CH,Brown CL,Gray CL,Brown CH,Gray CH,Gray CL,Brown CL,Orange SP,Tan SP,Brown CL,Tan SP,Tan SP,Gray CH
+83.82,Gray CH,Brown CL,Gray CL,Brown CH,Gray CH,Gray CL,Brown CL,Orange SP,Tan SP,Brown CL,Brown SP,Tan SP,Gray CH
+86.36,Gray CH,Brown CL,Gray CL,Brown CH,Gray CH,Gray CL,Gray CL,Orange SP,Tan SP,Gray CL,Brown SP,Tan SP,Gray CH
+88.9,Gray CH,Brown CL,Gray CL,Brown CH,Gray CH,Gray CL,Gray CL,Orange SP,Tan SP,Gray CL,Brown SP,Tan SP,Gray CH
+91.44,Gray CH,Brown CL,Gray CL,Brown CH,Black ML,Gray CL,Gray CL,Orange SP,Tan SP,Gray CL,Brown SP,Tan SP,Gray CH
+93.98,Gray CH,Brown CL,Gray CL,Brown CH,Black ML,Gray CL,Gray CL,Orange SP,Tan SP,Gray CL,Brown SP,Tan SP,Gray CH
+96.52,Gray CH,Brown CL,Gray CL,Brown CH,Black ML,Gray CL,Gray CL,Orange SP,Tan SP,Gray CL,Brown SP,Tan SP,Gray CH
+99.06,Gray CH,Brown CL,Gray CL,Brown CH,Black ML,Gray CL,Gray CL,Orange SP,Tan SP,Gray CL,Brown SP,Tan SP,Gray CH
+101.6,Gray CH,Brown CL,Gray CL,Brown CH,Black ML,Brown CL,Gray CL,Orange SP,Brown CL,Gray CL,Brown SP,Tan SP,Gray CH
+104.14,Brown Sandy CL,Brown CL,Gray CL,Brown CH,Black ML,Brown CL,Gray CL,Orange SP,Brown CL,Gray CL,Brown SP,Tan SP,Gray CH
+106.68,Brown Sandy CL,Brown Sandy CL,Gray CL,Brown CH,Black ML,Brown CL,Gray CL,Orange SP,Brown CL,Gray CL,Brown SP,Tan SP,Gray CH
+109.22,Brown Sandy CL,Brown Sandy CL,Gray CL,Brown CH,Black ML,Brown CL,Gray CL,Orange SP,Brown CL,Gray CL,Brown SP,Tan SP,Gray CH
+111.76,Brown Sandy CL,Brown Sandy CL,Gray CL,Brown CH,Black ML,Brown CL,Gray CL,Orange SP,Brown CL,Gray CL,Brown SP,Tan SP,Gray CH
+114.3,Brown Sandy CL,Brown Sandy CL,Gray CL,Brown CH,Black ML,Brown CL,Gray CL,Orange SP,Brown CL,Gray CL,Brown SP,Tan SP,Gray CH
+116.84,Brown Sandy CL,Brown Sandy CL,Orange SP,Brown CH,Black ML,Brown CL,Gray CL,Orange SP,Brown CL,Gray CL,Brown SP,Tan SP,Gray CH
+119.38,Brown Sandy CL,Brown Sandy CL,Orange SP,Brown CH,Black ML,Brown CL,Gray CL,Orange SP,Brown CL,Gray CL,Brown SP,Tan SP,Gray CH
+121.92,Brown Sandy CL,Brown Sandy CL,Orange SP,Brown CH,Black ML,Brown CL,Gray CL,Orange SP,Brown CL,Gray CL,Brown SP,Tan SP,Gray CH
