@@ -15,13 +15,20 @@ Instructions for use:
     6. Set up analyte list:
         potential_analytes = ["F",
                               "Cl",
-                              "Br","
-                              Phosphate",
+                              "Br",
+                              "Phosphate",
                               "Sulfate",
                               "Nitrate",
                               "Nitrite"]
-    7. Set up loop and run
-    
+    7. Run full_run() with your analyte list as the only argument to process with reports and without plotting
+       Other args are, in order: Report Standards, Plot Standards, Report Samples, Plot Samples
+       Example run:
+           full_run(["F"],False, False, False, True)
+           
+           Results in processing all samples for F from the site selected in set_fs(),
+               not printing real-time results in the console,
+               but quietly plotting and saving figures of sample data only.
+           Do note that even for a single analyte, the function requires a list, not a string.
 
 @author: Vivien
 """
@@ -268,8 +275,7 @@ def process_chroma_std(analyte, sitename = "GMP", plot = True,chatty = True):
     df_standards = pd.DataFrame(standard_data)
     df_standards.columns = ['analyte','conc_uM','analysis_time','max_cond','peak_area','peak_height','fwhm']
     df_standards.analysis_time=pd.to_datetime(df_standards.analysis_time) #Includes 100um Single-anion stds (not needed for calibration but good to have as evidence of peak timing)
-    lin_stds = df_standards[df_standards['analyte'] == 'mixedanion'].copy().sort_values(["analysis_time","conc_uM"])
-    df_standards = lin_stds.sort_values('conc_uM')
+    df_standards = df_standards[df_standards['analyte'] == 'mixedanion'].sort_values(["conc_uM","analysis_time"])
     return df_standards
 
 #Sitename options are presently ["GMP","CBG"], must match the folder names in the IC Data directory
@@ -325,19 +331,20 @@ def process_chromatogram(analyte,sitename = "GMP" ,plot = True,chatty = True):
     else: df_data.columns = ['name','analysis_time','dilution','max_cond','peak_area','peak_height','fwhm']
 
     df_data.analysis_time=pd.to_datetime(df_data.analysis_time)
+    df_data.sort_values("analysis_time",inplace = True)
     return df_data
 
 
 ## TODO: Drop std run days with bad data (entire day)
-def full_run(selected_analytes):
+def full_run(selected_analytes,st_verbose=True,st_figures=False,d_verbose = True,d_figures=False):
     for temp_analyte in selected_analytes:
     
         #formulae used:
         #area = conc * fit[0] + fit[1]
         #conc = (area - fit[1])/fit[0]
         
-        df_st = process_chroma_std(temp_analyte,temp_fs,chatty = True, plot = False)
-        df_d = process_chromatogram(temp_analyte,temp_fs,chatty = False,plot = False)
+        df_st = process_chroma_std(temp_analyte,temp_fs,chatty = st_verbose, plot = st_figures)
+        df_d = process_chromatogram(temp_analyte,temp_fs,chatty = d_verbose,plot = d_figures)
     
         fit = np.polyfit(df_st.conc_uM,df_st.peak_area,1)       # Regress standard conc w/ chromatogram peak area
         #reg_concs = df_st.conc_uM.unique().tolist()
@@ -365,20 +372,14 @@ def full_run(selected_analytes):
         plt.savefig(processed_loc + "figures//" +figname)
         plt.close()
         
+        df_d.sort_values("analysis_time",inplace = True)
+        
         #Save data
         df_d.to_csv(processed_loc + "datafiles//" + "IC_2019_" + temp_analyte + "_sampledata_detailed.csv",index = False)
         df_st.to_csv(processed_loc + "datafiles//" + "IC_2019_" + temp_analyte + "_standards.csv",index = False)
+        return df_d,df_st
         
 # Get only data for good runs
 ## TODO: Move this to the end and publish as full data table w/ all analytes
 #data_reduced = df_d[['name','sample_date','conc_uM']].dropna()
 #data_reduced.to_csv(processed_datapath + "IC_2019_sampledata_reduced.csv",index = False)
-
-
-## Testing plotting and process code
-# =============================================================================
-# temp_fn = 'WLW8 3#27#18 10x_Warta-PC_20180420-162626.txt' 
-# rt,sn,fr = process(temp_fn)
-# plot_chroma(rt,sn,fr)
-# 
-# =============================================================================
