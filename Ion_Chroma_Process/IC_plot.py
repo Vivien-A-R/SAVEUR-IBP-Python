@@ -36,6 +36,7 @@ Instructions for use:
 import pandas as pd
 import os as os
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 #from scipy.integrate import cumtrapz as ct # Went with height over area as critical measure; may rigorously test later with other integrations
 import re
@@ -335,6 +336,25 @@ def process_chromatogram(analyte,sitename = "GMP" ,plot = True,chatty = True):
     return df_data
 
 
+## test fitting
+temp_analyte = "Cl"
+
+df_st = process_chroma_std(temp_analyte,temp_fs,chatty = False, plot = False)
+df_d = process_chromatogram(temp_analyte,temp_fs,chatty = False,plot = False)
+
+sns.boxplot(x = "conc_uM",y = "peak_area",data = df_st)
+
+fit = np.polyfit(df_st.conc_uM,df_st.peak_area,1,full=True)       # Regress standard conc w/ chromatogram peak area
+fit_resid = fit[1][0]
+reg_concs = df_st.conc_uM.unique().tolist()
+
+st_square = df_st.pivot(columns = "conc_uM",values = "peak_area").apply(lambda x: pd.Series(x.dropna().values))
+st_square.boxplot()
+
+pd_ststats = pd.DataFrame([st_square.mean(),st_square.std(),st_square.min(),st_square.max()])
+
+df_d['conc_uM'] = ((df_d['peak_area'] - fit[0][1])/fit[0][0])*df_d['dilution']    # Use regression to calculate concentration from sample chromatogram peak area
+
 ## TODO: Drop std run days with bad data (entire day)
 def full_run(selected_analytes,st_verbose=True,st_figures=False,d_verbose = True,d_figures=False):
     for temp_analyte in selected_analytes:
@@ -347,7 +367,7 @@ def full_run(selected_analytes,st_verbose=True,st_figures=False,d_verbose = True
         df_d = process_chromatogram(temp_analyte,temp_fs,chatty = d_verbose,plot = d_figures)
     
         fit = np.polyfit(df_st.conc_uM,df_st.peak_area,1)       # Regress standard conc w/ chromatogram peak area
-        #reg_concs = df_st.conc_uM.unique().tolist()
+        
         #reg_means = 
         #reg_stdevs = 
         # Make this into a data table and use to drop outliers
