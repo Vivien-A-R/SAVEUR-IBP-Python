@@ -15,7 +15,7 @@ from astropy.stats import LombScargle
 import statsmodels.nonparametric.smoothers_lowess as sml
 from scipy.interpolate import interp1d
 
-root_path = 'C:\Users\Packman-Field\Google Drive\Packman Group\Multifunctional Urban Green Spaces Research Project\IBP Project\Documents\Deprecated Data Folder\\'
+root_path = 'C:\Users\Packman-Field\Google Drive\Packman Group\Multifunctional Urban Green Spaces Research Project\IBP Project\Documents\\'
 data_path = root_path + 'Processed Water Level Data\\'
 rain_data = root_path + 'Precipitation\\'
 soil_path = root_path + 'Data From SMP\\'
