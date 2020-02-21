@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Apr 25 12:24:55 2018
-
+Ion chomatography processing code - Vivien Rivera 2020
 Instructions for use:
     1. Create data directory that will contain both raw and processed data
         main directory > site name > "IC Data" 
@@ -10,34 +9,31 @@ Instructions for use:
         main directory > site name > "Processed" > "figures"
     2. Set variable local_path to the path to the folder containing the site folders
     3. Set variable temp_fs to the sitename EXACTLY matching the site name in the file path
-    4. Run set_fs()
+    4. Run this entire python script to set up variables and functions
     5. Run fix_filenames() if filenames don't match the format: [sample id]_Warta-PC_[timestamp].txt
-    6. Set up analyte list:
-        potential_analytes = ["F",
-                              "Cl",
-                              "Br",
-                              "Phosphate",
-                              "Sulfate",
-                              "Nitrate",
-                              "Nitrite"]
-    7. Run full_run() with your analyte list as the only argument to process with reports and without plotting
-       Other args are, in order: Report Standards, Plot Standards, Report Samples, Plot Samples
+        RUN THIS ONLY ONCE; it's not a smart function.
+    6. Run full_run() with your analyte list as the only argument to process with reports and default to dimension = "peak_area" for regression
        Example run:
-           full_run(["F"],False, False, False, True)
+           full_run(['F','Br'],'peak_height',False])
            
-           Results in processing all samples for F from the site selected in set_fs(),
+           Results in processing all samples for F and Br from the field site set with temp_fs
                not printing real-time results in the console,
-               but quietly plotting and saving figures of sample data only.
+               and calculating the regression using peak height instead of peak area
            Do note that even for a single analyte, the function requires a list, not a string.
-
-@author: Vivien
+           Running full_run() with no arguments processes all samples for all analytes,
+               reporting real-time results in the console,
+               and calculating regression with peak area
+    7. Figures are not generate by the full_run() function. Use plot_all() with no
+        parameters to generate plots of the chromatographs for named samples that match
+        the naming schemes established in the fix_filenames function. The same function
+        including the argument stds = True to plot all chromatographs in the folder identified as standards
 """
-
 import pandas as pd
 import os as os
 import matplotlib.pyplot as plt
-import seaborn as sns
+#import seaborn as sns
 import numpy as np
+from scipy import stats
 #from scipy.integrate import cumtrapz as ct # Went with height over area as critical measure; may rigorously test later with other integrations
 import re
 from datetime import datetime
@@ -47,39 +43,19 @@ from datetime import datetime
 local_path = "C:\Users\Packman-Field\Documents\IC Data\\"
 
 temp_fs = "CBG"
+potential_analytes = ["F","Cl","Br","Phosphate","Sulfate","Nitrate","Nitrite"]
 
-def set_fs(fieldsite_name):
-    raw_path = local_path + fieldsite_name + "\\IC Data\\"
-    proc_path = local_path + fieldsite_name + "\\Processed\\"
-    return raw_path, proc_path
+file_loc = local_path + temp_fs + "\\IC Data\\"
+processed_loc = local_path + temp_fs + "\\Processed\\"
 
-file_loc, processed_loc = set_fs(temp_fs)
 filenames = os.listdir(file_loc)
 allfiles = [filename for filename in filenames if filename.endswith('.txt')]
 
-#potential_analytes = ["F","Cl","Br","Phosphate","Sulfate","Nitrate"]
-potential_analytes = ["Phosphate","Sulfate","Nitrate"]
-
 #############################
-
-#Figure out where the data starts
-def header_count(file_path):
-    i=-1
-    data_start_flag='min'
-    temp_line=('placeholder')
-    header_bottom = 0
-    temp_file=open(file_path,'r') ##opens the file without loading in the data, remember to close the file once done using it.
-    while (temp_line.find(data_start_flag)==i):
-        temp_line=temp_file.readline()
-        header_bottom = header_bottom + 1
-    temp_file.close()
-    return header_bottom
-
 # Convert filenames to match Lili's format to Vivien's format
 # For new sample sets, will need to make a new correction rule
 # ONLY RUN ONCE.
 def fix_filenames():
-    
     #Standards
     # Standard [conc] uM [analyte]_Water-PC_[timestamp].txt
     # Example: Standard 100 uM mixedanion_Warta-PC_20191011-103847
@@ -130,7 +106,27 @@ def fix_filenames():
         newstring = "-".join(fnstrs[0:3])+"_"+"_".join(fnstrs[3:5])
         print newstring
         os.rename(file_loc+f,file_loc+newstring)
-    
+
+# Get the list of files to work with
+def get_runfiles(stds = False):
+    if stds == True: files = [filename for filename in allfiles if filename.startswith('Standard')]
+    elif temp_fs == "GMP": files = [filename for filename in allfiles if filename.startswith('WL')]
+    elif temp_fs == "CBG": files = [filename for filename in allfiles if filename.startswith('S') and "uM" not in filename]
+    else: files = allfiles
+    return files
+
+#Figure out where the data starts
+def header_count(file_path):
+    i=-1
+    data_start_flag='min'
+    temp_line=('placeholder')
+    header_bottom = 0
+    temp_file=open(file_path,'r') ##opens the file without loading in the data, remember to close the file once done using it.
+    while (temp_line.find(data_start_flag)==i):
+        temp_line=temp_file.readline()
+        header_bottom = header_bottom + 1
+    temp_file.close()
+    return header_bottom
 
 # Extract data from the raw text file
 # Takes the path of the text file generated by the instrument software;
@@ -150,36 +146,36 @@ def process(temp_fn):
     return runtime,s_name,file_raw    
 
 # Plots the raw timeseries (cond. vs time) on consistently sized axes
-def plot_chroma(runtime,s_name,file_raw,xm = 20, ym = 12):
+def plot_chroma(runtime,s_name,file_raw,xm = 20):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.plot(file_raw.time,file_raw.conductivity)
     ax.set(title = s_name,
            xlim = [0,xm],
-           ylim = [0,ym],
+           xticks = [0,2,4,6,8,10,12,14,16,18,20],
            xlabel = 'time (minutes)',
            ylabel = 'conductivity (microS/cm)')
 
 # "Switch" for selecting time based on arg
 def analyte_time_set(ion):
     switcher = {
-        "F" : 4.21 ,
-        "Cl": 6.23,
-        "Nitrite": 7.47,
-        "Phosphate": 9.24,
-        "Br": 9.52,
-        "Nitrate": 10.97,
-        "Sulfate": 10.81
+        "F" : 4.13 ,
+        "Cl": 6.12,
+        "Nitrite": 7.35,
+        "Br": 9.38,
+        "Nitrate": 10.81,
+        "Phosphate": 13.42,
+        "Sulfate": 15.63
     }
     return switcher.get(ion)
 
-
 #Tolerance is because peaks seem to shift a bit between runs, which makes some get skipped; play with this if you're concerned about peak overlap
-## TODO: Concerning bit: Nitrite peak is too small for conventional algorithm (points that differ from the mean within 95% CI are in a peak); need to do something different for nitrate/nitrate
-## TODO: Only process small chunks to capture analytes with relatively small peaks (fix for nitrate)
-def peakfinder(snippet,analyte,tolerance = 0.1):
-    y = snippet.conductivity
-    #x = snippet.time       # May want this later?
+def peakfinder(snippet,analyte,tolerance = 0.3):
+    t_expected = analyte_time_set(analyte)
+    if analyte == "Nitrite":
+        thresh = 0.8
+        y = snippet[(snippet.time > t_expected - thresh) & (snippet.time < t_expected + thresh)].conductivity
+    else: y = snippet.conductivity        
 
     #Generate statistics and find peaks
     ysts = [np.mean(y),
@@ -209,13 +205,10 @@ def peakfinder(snippet,analyte,tolerance = 0.1):
                 tog = check                 # Set tog = check = True (we are now in a peak)
     # Now we have a list of lists, ind_peaks, with each peak as a tuple of [start,end] indices
     
-    
-    t_expected = analyte_time_set(analyte)
-    
     ion_peak = []
     for peak in ind_peaks:
         p = snippet.iloc[peak[0]:peak[1]]
-        pt=p.time.values.tolist()
+        pt = p.time.values.tolist()
         if pt[0] < t_expected+tolerance and pt[-1] > t_expected-tolerance:
             ion_peak = peak
     snippet.drop(['peak'],axis = 1,inplace = True)
@@ -224,7 +217,6 @@ def peakfinder(snippet,analyte,tolerance = 0.1):
 
 # Calculate area, height, and full-width at half maximum
 def calc_peakstats(file_raw,ipeak,peak_baseline):
-
     peak_only = file_raw[ipeak[0]:ipeak[1]].copy()          # Get the analyte ion peak that we found with peakfinder()
     peakmax = max(peak_only.conductivity)                   # Get the max of the peak
     halfmax = (peakmax-peak_baseline)/2+peak_baseline       # Find the half-maximum
@@ -239,17 +231,17 @@ def calc_peakstats(file_raw,ipeak,peak_baseline):
 
 ## Standards; similar process to samples
 # Options for analyte : ["F","Cl","Nitrite","Br","Nitrate"], case sensitive, misspellings will throw error
-def process_chroma_std(analyte, sitename = "GMP", plot = True,chatty = True):
+def process_chroma_std(analyte, dimension, chatty = True):
     standard_data = []
-    files = [filename for filename in allfiles if filename.startswith('Standard')]
-    print("Processing " + sitename + " standards for " + analyte)
+    files = get_runfiles(True)
+    
+    print("Processing " + temp_fs + " standards for " + analyte)
     for fn in files:
         rt,sn,fr = process(fn)
         std_conc = int(sn.split()[1])
         std_analyte = sn.split()[3]
         max_cond = max(fr.conductivity)
         rt_l = datetime.strftime(rt,'%Y-%m-%d %H:%M:%S') #Long-form runtime
-        rt_fn = datetime.strftime(rt, "%Y%m%d-%H%M%S") #No punctuation runtime (for filenames)
         datarow = [std_analyte,std_conc,rt_l,max_cond]
         if(max_cond < 100):
             cp, pb = peakfinder(fr,analyte)
@@ -260,13 +252,6 @@ def process_chroma_std(analyte, sitename = "GMP", plot = True,chatty = True):
             else:
                 if chatty == True: print(sn + ": No " + analyte + " peak")
                 datarow = datarow + [0,0,0]
-            if plot == True:
-                    plot_chroma(rt_fn,sn,fr)
-                    snp = "_".join(sn.split())
-                    snp = "-".join(snp.split("/"))
-                    figname = rt_fn + "_" + snp +".png"
-                    plt.savefig(processed_loc + "figures//" +figname)
-                    plt.close()
         else:
             if chatty == True: print(sn + ": No peaks")
             datarow = datarow + [np.nan,np.nan,np.nan]
@@ -277,129 +262,104 @@ def process_chroma_std(analyte, sitename = "GMP", plot = True,chatty = True):
     df_standards.columns = ['analyte','conc_uM','analysis_time','max_cond','peak_area','peak_height','fwhm']
     df_standards.analysis_time=pd.to_datetime(df_standards.analysis_time) #Includes 100um Single-anion stds (not needed for calibration but good to have as evidence of peak timing)
     df_standards = df_standards[df_standards['analyte'] == 'mixedanion'].sort_values(["conc_uM","analysis_time"])
-    return df_standards
+    
+    st_square = df_standards.pivot(columns = "conc_uM",values = dimension).apply(lambda x: pd.Series(x.dropna().values))
+    st_square = st_square[(np.abs(stats.zscore(st_square)) < 3).all(axis=1)]
+    st_melt = st_square.melt(value_name = dimension)
+    return st_melt
 
 #Sitename options are presently ["GMP","CBG"], must match the folder names in the IC Data directory
-def process_chromatogram(analyte,sitename = "GMP" ,plot = True,chatty = True):
-    analysis_data = []
-    files = allfiles
-    if sitename == "GMP": files = [filename for filename in allfiles if filename.startswith('WL')]
-    elif sitename == "CBG": files = [filename for filename in allfiles if filename.startswith('S') and "uM" not in filename]
-    else: files = allfiles
-    
-    print("Processing " + sitename+ " samples for " + analyte)
-    
-    for fn in files:
-        rt,sn,fr = process(fn)  # Get data frame
-        s_id = sn.split()[0]    # Get identifying metadata: sample ID, runtime, dilution
-        max_cond = max(fr.conductivity)     # Identify the max conductivity to decide whether or not to analyze peaks (useful when there is instrument error)
-        if sitename == "GMP":
-            s_date = sn.split()[1]
-            dil = int(sn.split()[2].strip('x'))
-        if sitename == "CBG":
-            dil = 1.0
-        rt_l = datetime.strftime(rt,'%Y-%m-%d %H:%M:%S') #Long-form runtime
-        rt_fn = datetime.strftime(rt, "%Y%m%d-%H%M%S") #No punctuation runtime (for filenames)
-        if sitename == "GMP": datarow = [s_id,s_date,rt_l,dil,max_cond]  # Include metadata in data row
-        else: datarow = [s_id,rt_l,dil,max_cond]
-            
-        if(max_cond < 100):                          # If max conductivity reasonable:
-            cp, pb = peakfinder(fr,analyte)       # Find analyte peak
-            if(len(cp) > 0):                         # If analyte peak exists
-                pa, pm, fwhm = calc_peakstats(fr,cp,pb)           # Calculate area, height at max, full width at half max
-                if chatty == True: print(sn + ": " + analyte + " peak area: " + str(pa))       # Status report
-                datarow = datarow + [pa,pm,fwhm]            # Add data row to data file
-                     # Plot on default axes
-            else:                                       # If no analyte peak:
-                if chatty == True: print(sn + ": No " + analyte + " peak")     # status report
-                datarow = datarow + [0,0,0]                 # All zeroes (no detectable analyte, but data is good)
-        else:                                       # If max conductivity is excessive:
-            if chatty == True: print(sn + ": No peaks")                    # Status report
-            datarow = datarow + [np.nan,np.nan,np.nan]  # All not-a-number (data is bad)
-        analysis_data = analysis_data + [datarow]   # Add result of chromatogram analyses to data frame
+def process_chromatogram(analyte,fn, chatty = True):
+    rt,sn,fr = process(fn)  # Get data frame
+    s_id = sn.split()[0]    # Get identifying metadata: sample ID, runtime, dilution
+    max_cond = max(fr.conductivity)     # Identify the max conductivity to decide whether or not to analyze peaks (useful when there is instrument error)
+    if temp_fs == "GMP":
+        s_date = sn.split()[1]
+        dil = int(sn.split()[2].strip('x'))
+    if temp_fs == "CBG":
+        dil = 1.0
+    rt_l = datetime.strftime(rt,'%Y-%m-%d %H:%M:%S') #Long-form runtime
 
-        if plot == True:
-            plot_chroma(rt_fn,sn,fr)  
-            snp = "_".join(sn.split())
-            snp = "-".join(snp.split("/"))
-            figname = rt_fn + "_" + snp +".png"
-            plt.savefig(processed_loc + "figures//" +figname)
-            plt.close()
+    if temp_fs == "GMP": datarow = [s_id,s_date,rt_l,dil,max_cond]  # Include metadata in data row
+    else: datarow = [s_id,rt_l,dil,max_cond]
         
-    df_data = pd.DataFrame(analysis_data)       # Format dataframe
+    if(max_cond < 100):                          # If max conductivity reasonable:
+        cp, pb = peakfinder(fr,analyte)       # Find analyte peak
+        if(len(cp) > 0):                         # If analyte peak exists
+            pa, pm, fwhm = calc_peakstats(fr,cp,pb)           # Calculate area, height at max, full width at half max
+            if chatty == True: print(sn + ": " + analyte + " peak area: " + str(pa))       # Status report
+            datarow = datarow + [pa,pm,fwhm]            # Add data row to data file
+        else:                                       # If no analyte peak:
+            if chatty == True: print(sn + ": No " + analyte + " peak")     # status report
+            datarow = datarow + [0,0,0]                 # All zeroes (no detectable analyte, but data is good)
+    else:                                       # If max conductivity is excessive:
+        if chatty == True: print(sn + ": No peaks")                    # Status report
+        datarow = datarow + [np.nan,np.nan,np.nan]  # All not-a-number (data is bad)
+    return datarow
 
-    if sitename == "GMP": df_data.columns = ['name','sample_date','analysis_time','dilution','max_cond','peak_area','peak_height','fwhm']
-    else: df_data.columns = ['name','analysis_time','dilution','max_cond','peak_area','peak_height','fwhm']
-
-    df_data.analysis_time=pd.to_datetime(df_data.analysis_time)
-    df_data.sort_values("analysis_time",inplace = True)
-    return df_data
-
-
-## test fitting
-temp_analyte = "Cl"
-
-df_st = process_chroma_std(temp_analyte,temp_fs,chatty = False, plot = False)
-df_d = process_chromatogram(temp_analyte,temp_fs,chatty = False,plot = False)
-
-sns.boxplot(x = "conc_uM",y = "peak_area",data = df_st)
-
-fit = np.polyfit(df_st.conc_uM,df_st.peak_area,1,full=True)       # Regress standard conc w/ chromatogram peak area
-fit_resid = fit[1][0]
-reg_concs = df_st.conc_uM.unique().tolist()
-
-st_square = df_st.pivot(columns = "conc_uM",values = "peak_area").apply(lambda x: pd.Series(x.dropna().values))
-st_square.boxplot()
-
-pd_ststats = pd.DataFrame([st_square.mean(),st_square.std(),st_square.min(),st_square.max()])
-
-df_d['conc_uM'] = ((df_d['peak_area'] - fit[0][1])/fit[0][0])*df_d['dilution']    # Use regression to calculate concentration from sample chromatogram peak area
-
-## TODO: Drop std run days with bad data (entire day)
-def full_run(selected_analytes,st_verbose=True,st_figures=False,d_verbose = True,d_figures=False):
+# dimension options:
+# "peak_area" or "peak_height"
+def full_run(selected_analytes=potential_analytes, dimension = "peak_area", verbose=True):
     for temp_analyte in selected_analytes:
-    
+
+        st_reduced = process_chroma_std(temp_analyte,dimension,verbose)
+        
+        #pd_ststats = pd.DataFrame([st_square.mean(),st_square.median(),st_square.std(),st_square.min(),st_square.max()])
+        #fit_resid = fit[1][0]
+        fit = np.polyfit(st_reduced.conc_uM,st_reduced[dimension],1,full=True)       # Regress standard conc w/ chromatogram peak area
+        plot_std(fit,st_reduced,temp_analyte,dimension)
+        
+        runfiles = get_runfiles()
+        analysis_data = []
+        
+        print("Processing " + temp_fs + " samples for " + temp_analyte)
+        for fn in runfiles:
+            dr = process_chromatogram(temp_analyte,fn,chatty = verbose)
+            analysis_data = analysis_data + [dr]
+        df_d = pd.DataFrame(analysis_data)  
+        
+        if temp_fs == "GMP": df_d.columns = ['name','sample_date','analysis_time','dilution','max_cond','peak_area','peak_height','fwhm']
+        else: df_d.columns = ['name','analysis_time','dilution','max_cond','peak_area','peak_height','fwhm']
+                
         #formulae used:
-        #area = conc * fit[0] + fit[1]
-        #conc = (area - fit[1])/fit[0]
-        
-        df_st = process_chroma_std(temp_analyte,temp_fs,chatty = st_verbose, plot = st_figures)
-        df_d = process_chromatogram(temp_analyte,temp_fs,chatty = d_verbose,plot = d_figures)
-    
-        fit = np.polyfit(df_st.conc_uM,df_st.peak_area,1)       # Regress standard conc w/ chromatogram peak area
-        
-        #reg_means = 
-        #reg_stdevs = 
-        # Make this into a data table and use to drop outliers
-        
-        df_d['conc_uM'] = ((df_d['peak_area'] - fit[1])/fit[0])*df_d['dilution']    # Use regression to calculate concentration from sample chromatogram peak area
-    
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        
-        lin_x_l = 0
-        lin_x_r = 100
-        lin_y_l = lin_x_l * fit[0] + fit[1]
-        lin_y_r = lin_x_r * fit[0] + fit[1]
-        s_title = "Standard curve for "+ temp_analyte
-        figname = temp_analyte + "_std_all.png"
-        
-        ax.plot(df_st.conc_uM, df_st.peak_area,'.')
-        ax.plot([lin_x_l, lin_x_r], [lin_y_l, lin_y_r])
-        ax.set(title = s_title,
-               ylabel = 'peak_area (uS/cm*min) ',
-               xlabel = 'concentration (uM)')
-        plt.savefig(processed_loc + "figures//" +figname)
-        plt.close()
-        
+        #dimension = conc * fit[0] + fit[1]
+        #conc = (dimension - fit[1])/fit[0]
+        df_d['conc_uM'] = ((df_d[dimension] - fit[0][1])/fit[0][0])*df_d['dilution']    # Use regression to calculate concentration from sample chromatogram peak area
+        df_d.analysis_time=pd.to_datetime(df_d.analysis_time)
         df_d.sort_values("analysis_time",inplace = True)
         
         #Save data
-        df_d.to_csv(processed_loc + "datafiles//" + "IC_2019_" + temp_analyte + "_sampledata_detailed.csv",index = False)
-        df_st.to_csv(processed_loc + "datafiles//" + "IC_2019_" + temp_analyte + "_standards.csv",index = False)
-        return df_d,df_st
-        
-# Get only data for good runs
-## TODO: Move this to the end and publish as full data table w/ all analytes
-#data_reduced = df_d[['name','sample_date','conc_uM']].dropna()
-#data_reduced.to_csv(processed_datapath + "IC_2019_sampledata_reduced.csv",index = False)
+        df_d.to_csv(processed_loc + "datafiles//" + "IC_2019_" + temp_analyte + "_"+ dimension + "_sampledata.csv",index = False)
+        st_reduced.to_csv(processed_loc + "datafiles//" + "IC_2019_" + temp_analyte + "_"+ dimension + "_standards.csv",index = False)
+
+def plot_std(fit_in,st_red,an,dim):
+    #Plot standards with linear fit shown
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    lin_x_l = 0
+    lin_x_r = 100
+    lin_y_l = lin_x_l * fit_in[0][0] + fit_in[0][1]
+    lin_y_r = lin_x_r * fit_in[0][0] + fit_in[0][1]
+    s_title = "Standard curve for "+ an + " using " + dim
+    figname = an + "-" + dim +"_std_all.png"
+    
+    ax.plot(st_red.conc_uM, st_red[dim],'.')
+    ax.plot([lin_x_l, lin_x_r], [lin_y_l, lin_y_r])
+    ax.set(title = s_title,
+           ylabel = dim,
+           xlabel = 'concentration (uM)',
+           ylim = [0,lin_y_r*1.2])
+    plt.savefig(processed_loc + "figures//" +figname)
+    plt.close()
+
+def plot_all(stds = True):
+    runfiles = get_runfiles(stds)
+    for fn in runfiles:
+        rt,sn,fr = process(fn)  # Get data frame
+        rt_fn = datetime.strftime(rt, "%Y%m%d-%H%M%S") #No punctuation runtime (for filenames)
+        plot_chroma(rt_fn,sn,fr)  
+        snp = "_".join(sn.split())
+        snp = "-".join(snp.split("/"))
+        figname = rt_fn + "_" + snp +".png"
+        plt.savefig(processed_loc + "figures//" + figname)
+        plt.close()
