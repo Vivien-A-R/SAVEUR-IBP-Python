@@ -42,7 +42,7 @@ from datetime import datetime
 ##########################
 local_path = "C:\Users\Packman-Field\Documents\IC Data\\"
 
-temp_fs = "CBG"
+temp_fs = "GMP"
 potential_analytes = ["F","Cl","Br","Phosphate","Sulfate","Nitrate","Nitrite"]
 
 file_loc = local_path + temp_fs + "\\IC Data\\"
@@ -352,8 +352,8 @@ def plot_std(fit_in,st_red,an,dim):
     plt.savefig(processed_loc + "figures//" +figname)
     plt.close()
 
-def plot_all(stds = True):
-    runfiles = get_runfiles(stds)
+def plot_all(p_stds = True):
+    runfiles = get_runfiles(p_stds)
     for fn in runfiles:
         rt,sn,fr = process(fn)  # Get data frame
         rt_fn = datetime.strftime(rt, "%Y%m%d-%H%M%S") #No punctuation runtime (for filenames)
