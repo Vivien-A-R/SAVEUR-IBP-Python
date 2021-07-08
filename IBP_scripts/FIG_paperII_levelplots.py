@@ -23,6 +23,7 @@ mpl.rcParams.update({'font.size': 14})
 #Plotting only, no spectral
 
 data_path = 'C:\Users\Packman-Field\Google Drive\Packman Group\Multifunctional Urban Green Spaces Research Project\IBP Project\Documents\Processed Water Level Data\\'
+paper_data = "C:\Users\Packman-Field\Documents\Paper II\Water Data\\waterlevels\\"
 
 #pd.set_option('expand_frame_repr', False)
 pd.set_option('max_colwidth',100)
@@ -30,18 +31,32 @@ pd.options.display.max_rows = 20
 
 #Sensor/well metadata (for sample elevations)
 sensor_meta = meta_get(data_path)
-sensor_meta['path'] = data_path+sensor_meta['data_id']+"_ibp_main.csv"
+sensor_list = sensor_meta.data_id.unique().tolist()
 
+for sensor_id in sensor_list:
+    datafile = pd.read_csv(data_path + sensor_id + "_ibp_main.csv",parse_dates=['date_time'])
+    datemin = pd.Timestamp(2016,10,1)
+    datemax = pd.Timestamp(2020,10,1)
+    df_4yr = datafile.loc[(datafile.date_time >= datemin) & (datafile.date_time < datemax)]
+    trimdata_path = paper_data+sensor_id+"_4yr.csv"
+    df_4yr.to_csv(trimdata_path,index = None)
+    
+
+def get_file(id, drop_flagged = True):
+    frame = pd.read_csv("PaperII Data\\"+id+"_4yr.csv",parse_dates=['date_time'])
+    if(drop_flagged == True):frame.loc[frame.qual_c<1,"WS_elevation_m"]=np.nan #Filter out qc-flagged values
+    
+    return frame
 
 def plot_raw(sensor_id = "all"):
     if(sensor_id == "all"):
         print("Default settings, loop through all sensors.")
         baro_plot()
         #Iterate through all sensors and plot them all on separate graphs with default axes
-        for sensor_id in sensor_meta.data_id.unique():
+        for sensor_id in sensor_list:
             print sensor_id
-            datafile = pd.read_csv(sensor_meta[sensor_meta.data_id == sensor_id].path.drop_duplicates().item(),parse_dates=['date_time'])
-            fig, ax = sep_plot(datafile,True)
+            datafile = get_file(sensor_id,False)
+            fig, ax = sep_plot(datafile)
             fig.suptitle(sensor_id)
             min_date = datafile['date_time'].min()
             max_date = datafile['date_time'].max()
@@ -82,11 +97,10 @@ def plot_raw(sensor_id = "all"):
 
     else:
         print("Generate plot for sensor "+sensor_id+" only.")
-        datafile = pd.read_csv(sensor_meta[sensor_meta.data_id == sensor_id].path.drop_duplicates().item(),parse_dates=['date_time'])
-        fig,ax = sep_plot(datafile,True)
+        datafile = get_file(sensor_id, False)
+        fig,ax = sep_plot(datafile)
         fig.suptitle(sensor_id)
     
-    return datafile
 # =============================================================================
 #         topelev_ft = sensor_meta[sensor_meta.data_id == sensor_id].top_elev_ft.item()
 #         cablelen_ft = sensor_meta[sensor_meta.data_id == sensor_id].cable_length_ft.item()
@@ -97,9 +111,8 @@ def plot_raw(sensor_id = "all"):
 
 
 #Plot a single timeseries on its own axes, autoset x and y range
-def sep_plot(datafile,skip_qc=False):
+def sep_plot(datafile):
     fig,ax = plt.subplots(figsize = (12,8))
-    if(skip_qc == True):datafile.loc[datafile.qual_c<1,"WS_elevation_m"]=np.nan #Skip qc-flagged values
     ax.plot(datafile.date_time,datafile.WS_elevation_m,label = 'Water Level') #Shows the original signal
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%B %Y'))
     ax.xaxis.set_major_locator(mdates.MonthLocator(bymonth = [1,4,7,10]))
@@ -112,36 +125,33 @@ def sep_plot(datafile,skip_qc=False):
 #Plots on stacked axes, shared x-axis
 def stack_plot(sets= (("WLW2","WLW3","WLW4","WLW5"),("WLS1","WLS2","WLS3","WLS4"),
             ("WLS5","WLS6","WLS7","WLS8")),stitch = False):
-    paths = sensor_meta[['data_id','path']].drop_duplicates()
-    level_data = dict((name,[]) for name in paths)
 
-    for index,row in paths.iterrows():
-        datafile = pd.read_csv(row['path'],parse_dates = ['date_time'])
-        datafile.loc[datafile.qual_c<1,"WS_elevation_m"]=np.nan #Skip qc-flagged values
-        level_data[row['data_id']]=datafile
+    level_data = dict((name,[]) for name in sensor_list)
+    for sensor_id in sensor_list:
+        level_data[sensor_id] = get_file(sensor_id)
 
-    for set in sets:
+    for s in sets:
         fig = plt.figure()
         i = 1
-        for ts in set:
+        for ts in s:
             timestamps = level_data[ts].date_time
-            ax = plt.subplot(len(set),1,i)
+            ax = plt.subplot(len(s),1,i)
             ax.ticklabel_format(useOffset=False)
 
             #Brute-forcing axis limits.
             #Please forgive me.
-            elmin = 183.5
-            elmax = 185.5
+            elmin = 183
+            elmax = 187
             ax.set_ylim(elmin,elmax)
-            ax.set_yticks((184.0,185))
+            ax.set_yticks((184.0,185,186))
             minor_locator = AutoMinorLocator(2)
             ax.yaxis.set_minor_locator(minor_locator)
 
             #days = mdates.DayLocator()
             months = mdates.MonthLocator(interval = 2)
             halfmonths = mdates.MonthLocator()
-            datemin = datetime.date(2016,7,1)
-            datemax = datetime.date(2017,11,1)
+            datemin = datetime.date(2016,10,1)
+            datemax = datetime.date(2020,10,1)
             ax.set_xlim(datemin, datemax)
             ax.xaxis.set_major_locator(months)
             ax.xaxis.set_minor_locator(halfmonths)
@@ -157,33 +167,44 @@ def stack_plot(sets= (("WLW2","WLW3","WLW4","WLW5"),("WLS1","WLS2","WLS3","WLS4"
 
             print ts
             i = i+1
-        fig.suptitle(", ".join(set), y=0.93)
+        fig.suptitle(", ".join(s), y=0.93)
         #plt.ylabel('Water table elevation (meters)')
         fig.autofmt_xdate()
         plt.subplots_adjust(hspace=0.0001)
         #plt.legend()
     if(stitch == True): multipage("stack_plots")
+    
+def baro_plot():
+    datafile = pd.read_csv(data_path + '\\baro_ibp_main.csv',parse_dates = ['date_time'])
+    fig = plt.figure()
+    plt.plot(datafile.date_time,datafile.pressure_pa)
+    plt.ylabel('Pressure (pa)')
+    plt.xlabel('Date/time')
+    plt.suptitle("Baro")
+    fig.autofmt_xdate()
 
 
-#Meh.
-def ols_plot(set_window,stitch = False):
-    mols = pd.stats.ols.MovingOLS
-
-    for index,row in sensor_meta.iterrows():
-        datafile = pd.read_csv(row['path'],index_col = 0)
-
-        model = mols(x=datafile.run_time,
-                     y=datafile.WS_elevation_m,
-                     window_type='rolling',
-                     window=set_window,
-                     intercept=True)
-        datafile['Y_hat'] = model.y_predict
-
-        plt.figure()
-        plt.plot(datafile.run_time,datafile.WS_elevation_m,c='r')
-        plt.plot(datafile.run_time,datafile.Y_hat,c='b')
-        plt.suptitle(row['data_id'])
-    if(stitch == True): multipage("ols_plots_all")
+# =============================================================================
+# #Meh.
+# def ols_plot(set_window,stitch = False):
+#     mols = pd.stats.ols.MovingOLS
+# 
+#     for index,row in sensor_meta.iterrows():
+#         datafile = pd.read_csv(row['path'],index_col = 0)
+# 
+#         model = mols(x=datafile.run_time,
+#                      y=datafile.WS_elevation_m,
+#                      window_type='rolling',
+#                      window=set_window,
+#                      intercept=True)
+#         datafile['Y_hat'] = model.y_predict
+# 
+#         plt.figure()
+#         plt.plot(datafile.run_time,datafile.WS_elevation_m,c='r')
+#         plt.plot(datafile.run_time,datafile.Y_hat,c='b')
+#         plt.suptitle(row['data_id'])
+#     if(stitch == True): multipage("ols_plots_all")
+# =============================================================================
 
 #Splits the time series along calendar seasons
 def season_split(datafile):
@@ -316,127 +337,128 @@ def averaging(skip_qc = False):
     return avglevels
     #avglevels.to_csv("averages.csv",sep=',',index=False)
 
-#Plot raw temp and pressure signal
-def presstemp_plot(datafile,sid):
-
-    x_time = pd.to_datetime(datafile.date_time)
-
-    fig, ax1 = plt.subplots()
-    #ax1.set_xticks(np.arange(0,datafile.run_time.iloc[-1]/(24*60*60),14))
-    #ax1.set_xticks(np.arange(0,datafile.run_time.iloc[-1]/(24*60*60),7),minor = True)
-
-    days = mdates.DayLocator()
-    months = mdates.MonthLocator()
-    datemin = datetime.date(2016,7,1)
-    datemax = datetime.date(2017,5,1)
-    ax1.set_xlim(datemin, datemax)
-    ax1.xaxis.set_major_locator(months)
-    ax1.xaxis.set_minor_locator(days)
-    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-
-    ax1.plot(x_time,datafile.pressure_pa,'b-')
-    ax1.set_ylabel('Pressure (Pa)', color='b')
-    ax2 = ax1.twinx()
-    ax2.plot(x_time,datafile.temperature_c,'r-')
-    ax2.set_ylabel('Temperature',color='r')
-    plt.xlabel('Date/time')
-    plt.suptitle(sid)
-    fig.autofmt_xdate()
-
-def baro_plot():
-    datafile = pd.read_csv(data_path + '\\baro_ibp_main.csv',parse_dates = ['date_time'])
-    fig = plt.figure()
-    plt.plot(datafile.date_time,datafile.pressure_pa)
-    plt.ylabel('Pressure (pa)')
-    plt.xlabel('Date/time')
-    plt.suptitle("Baro")
-    fig.autofmt_xdate()
-
-#Plots on same axes
-#Modified for short time series to show precipitation
-def comb_plot(sets = (("WLS1","WLS8","WLS3","WLS4"),
-            ("WLS5","WLS6","WLS7","WLS8"),
-            ("WLW1","WLW2","WLW3"),
-            ("WLW4","WLW9","WLW8","WLW7"),
-            ("WLW5","WLW6","WLW10")) ,stitch = False):
-    level_data = dict((name,[]) for name in sensor_meta.data_id)
-    start = datetime.datetime.strptime('2016-07-10 00:00:00', '%Y-%m-%d %H:%M:%S')
-    end = datetime.datetime.strptime('2016-07-30 00:00:00', '%Y-%m-%d %H:%M:%S')
-
-    for index,row in sensor_meta.iterrows():
-            datafile = pd.read_csv(row['path'],index_col = 0,parse_dates = ['date_time'])
-            level_data[row['data_id']]=datafile
-
-    for set in sets:
-        fig,(ax1,ax2) = plt.subplots(2,1,sharex=True)
-        j=0
-        for ts in set:
-            level_data[ts] = level_data[ts][level_data[ts].date_time < end]
-            #df_smp = df_smp[df_smp.date_time > start]
-            ax1.plot(level_data[ts].date_time,level_data[ts].WS_elevation_m,linestyle = ['-','--'][j],color = 'black',label = ts)
-            j = j+1
-        fig.autofmt_xdate()
-        plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=4, mode="expand", borderaxespad=0.)
-        ax1.set_yticks((184,184.5,185))
-        precip = pd.read_csv('C:\Users\Vivien\Dropbox\IBP_Python\scripts_and_filenames\data_products\precip.csv',sep = ',')
-        precip.columns = ['date_time', 'precip_30min_in']
-        precip.date_time = pd.to_datetime(precip.date_time)
-        ax2.plot(precip.date_time, precip.precip_30min_in,label = "Precipitation (inches)")
-        ax2.set_yticks((0,0.2,0.4))
-        #plt.legend()
-        #ax2.text(textx,0.5, "Precipitation (inches)",color='royalblue')
-        myFmt = mdates.DateFormatter('%B %d')
-        ax1.xaxis.set_major_formatter(myFmt)
-        plt.subplots_adjust(hspace=0.0001)
-
-    if(stitch == True): multipage('comb_plots')
-
-def comb_plot2(set1,set2,stitch = False):
-    level_data = dict((name,[]) for name in sensor_meta.data_id)
-    #start = datetime.datetime.strptime('2016-07-10 00:00:00', '%Y-%m-%d %H:%M:%S')
-    end = datetime.datetime.strptime('2016-07-30 00:00:00', '%Y-%m-%d %H:%M:%S')
-
-    for index,row in sensor_meta.iterrows():
-            datafile = pd.read_csv(row['path'],index_col = 0)
-            level_data[row['data_id']]=datafile
+# =============================================================================
+# #Plot raw temp and pressure signal
+# def presstemp_plot(datafile,sid):
+# 
+#     x_time = pd.to_datetime(datafile.date_time)
+# 
+#     fig, ax1 = plt.subplots()
+#     #ax1.set_xticks(np.arange(0,datafile.run_time.iloc[-1]/(24*60*60),14))
+#     #ax1.set_xticks(np.arange(0,datafile.run_time.iloc[-1]/(24*60*60),7),minor = True)
+# 
+#     days = mdates.DayLocator()
+#     months = mdates.MonthLocator()
+#     datemin = datetime.date(2016,7,1)
+#     datemax = datetime.date(2017,5,1)
+#     ax1.set_xlim(datemin, datemax)
+#     ax1.xaxis.set_major_locator(months)
+#     ax1.xaxis.set_minor_locator(days)
+#     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+# 
+#     ax1.plot(x_time,datafile.pressure_pa,'b-')
+#     ax1.set_ylabel('Pressure (Pa)', color='b')
+#     ax2 = ax1.twinx()
+#     ax2.plot(x_time,datafile.temperature_c,'r-')
+#     ax2.set_ylabel('Temperature',color='r')
+#     plt.xlabel('Date/time')
+#     plt.suptitle(sid)
+#     fig.autofmt_xdate()
+# =============================================================================
 
 
-    fig,(ax1,ax2,ax3) = plt.subplots(3,1,sharex=True,figsize = (12,6))
-    j=0
-    for ts in set1:
-        level_data[ts].date_time = pd.to_datetime(level_data[ts].date_time)
-        level_data[ts] = level_data[ts][level_data[ts].date_time < end]
-        #df_smp = df_smp[df_smp.date_time > start]
-        ax1.plot(level_data[ts].date_time,level_data[ts].WS_elevation_m,linestyle = ['-','--'][j],color = 'black',label = ts)
-        j = j+1
-    j=0
-    for ts in set2:
-        level_data[ts].date_time = pd.to_datetime(level_data[ts].date_time)
-        level_data[ts] = level_data[ts][level_data[ts].date_time < end]
-        #df_smp = df_smp[df_smp.date_time > start]
-        ax2.plot(level_data[ts].date_time,level_data[ts].WS_elevation_m,linestyle = ['-','--'][j],color = 'black',label = ts)
-        j = j+1
 
-    #fig.autofmt_xdate()
-    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=4, mode="expand", borderaxespad=0.)
+# =============================================================================
+# #Plots on same axes
+# #Modified for short time series to show precipitation
+# def comb_plot(sets = (("WLS1","WLS8","WLS3","WLS4"),
+#             ("WLS5","WLS6","WLS7","WLS8"),
+#             ("WLW1","WLW2","WLW3"),
+#             ("WLW4","WLW9","WLW8","WLW7"),
+#             ("WLW5","WLW6","WLW10")) ,stitch = False):
+#     level_data = dict((name,[]) for name in sensor_meta.data_id)
+#     start = datetime.datetime.strptime('2016-07-10 00:00:00', '%Y-%m-%d %H:%M:%S')
+#     end = datetime.datetime.strptime('2016-07-30 00:00:00', '%Y-%m-%d %H:%M:%S')
+# 
+#     for index,row in sensor_meta.iterrows():
+#             datafile = pd.read_csv(row['path'],index_col = 0,parse_dates = ['date_time'])
+#             level_data[row['data_id']]=datafile
+# 
+#     for set in sets:
+#         fig,(ax1,ax2) = plt.subplots(2,1,sharex=True)
+#         j=0
+#         for ts in set:
+#             level_data[ts] = level_data[ts][level_data[ts].date_time < end]
+#             #df_smp = df_smp[df_smp.date_time > start]
+#             ax1.plot(level_data[ts].date_time,level_data[ts].WS_elevation_m,linestyle = ['-','--'][j],color = 'black',label = ts)
+#             j = j+1
+#         fig.autofmt_xdate()
+#         plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=4, mode="expand", borderaxespad=0.)
+#         ax1.set_yticks((184,184.5,185))
+#         precip = pd.read_csv('C:\Users\Vivien\Dropbox\IBP_Python\scripts_and_filenames\data_products\precip.csv',sep = ',')
+#         precip.columns = ['date_time', 'precip_30min_in']
+#         precip.date_time = pd.to_datetime(precip.date_time)
+#         ax2.plot(precip.date_time, precip.precip_30min_in,label = "Precipitation (inches)")
+#         ax2.set_yticks((0,0.2,0.4))
+#         #plt.legend()
+#         #ax2.text(textx,0.5, "Precipitation (inches)",color='royalblue')
+#         myFmt = mdates.DateFormatter('%B %d')
+#         ax1.xaxis.set_major_formatter(myFmt)
+#         plt.subplots_adjust(hspace=0.0001)
+# 
+#     if(stitch == True): multipage('comb_plots')
+# =============================================================================
 
-    ax1.set_ylim(ymin = 183.8, ymax = 185.0)
-    ax2.set_ylim(ymin = 183.8, ymax = 185.0)
-    ax1.set_yticks((184.0,184.2,184.4,184.6,184.8))
-    ax2.set_yticks((184.0,184.2,184.4,184.6,184.8))
-
-    precip = pd.read_csv('C:\Users\Vivien\Dropbox\IBP_Python\scripts_and_filenames\data_products\precip.csv',sep = ',')
-    precip.columns = ['date_time', 'precip_30min_in']
-    precip.date_time = pd.to_datetime(precip.date_time)
-    ax3.plot(precip.date_time, precip.precip_30min_in,label = "Precipitation (inches)")
-    ax3.set_yticks((0,0.2,0.4,0.6))
-    #plt.legend()
-    #ax2.text(textx,0.5, "Precipitation (inches)",color='royalblue')
-    myFmt = mdates.DateFormatter('%B %d')
-    ax1.xaxis.set_major_formatter(myFmt)
-    plt.subplots_adjust(hspace=0.0001)
-
-    if(stitch == True): multipage('comb_plots')
+# =============================================================================
+# def comb_plot2(set1,set2,stitch = False):
+#     level_data = dict((name,[]) for name in sensor_meta.data_id)
+#     #start = datetime.datetime.strptime('2016-07-10 00:00:00', '%Y-%m-%d %H:%M:%S')
+#     end = datetime.datetime.strptime('2016-07-30 00:00:00', '%Y-%m-%d %H:%M:%S')
+# 
+#     for index,row in sensor_meta.iterrows():
+#             datafile = pd.read_csv(row['path'],index_col = 0)
+#             level_data[row['data_id']]=datafile
+# 
+# 
+#     fig,(ax1,ax2,ax3) = plt.subplots(3,1,sharex=True,figsize = (12,6))
+#     j=0
+#     for ts in set1:
+#         level_data[ts].date_time = pd.to_datetime(level_data[ts].date_time)
+#         level_data[ts] = level_data[ts][level_data[ts].date_time < end]
+#         #df_smp = df_smp[df_smp.date_time > start]
+#         ax1.plot(level_data[ts].date_time,level_data[ts].WS_elevation_m,linestyle = ['-','--'][j],color = 'black',label = ts)
+#         j = j+1
+#     j=0
+#     for ts in set2:
+#         level_data[ts].date_time = pd.to_datetime(level_data[ts].date_time)
+#         level_data[ts] = level_data[ts][level_data[ts].date_time < end]
+#         #df_smp = df_smp[df_smp.date_time > start]
+#         ax2.plot(level_data[ts].date_time,level_data[ts].WS_elevation_m,linestyle = ['-','--'][j],color = 'black',label = ts)
+#         j = j+1
+# 
+#     #fig.autofmt_xdate()
+#     plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=4, mode="expand", borderaxespad=0.)
+# 
+#     ax1.set_ylim(ymin = 183.8, ymax = 185.0)
+#     ax2.set_ylim(ymin = 183.8, ymax = 185.0)
+#     ax1.set_yticks((184.0,184.2,184.4,184.6,184.8))
+#     ax2.set_yticks((184.0,184.2,184.4,184.6,184.8))
+# 
+#     precip = pd.read_csv('C:\Users\Vivien\Dropbox\IBP_Python\scripts_and_filenames\data_products\precip.csv',sep = ',')
+#     precip.columns = ['date_time', 'precip_30min_in']
+#     precip.date_time = pd.to_datetime(precip.date_time)
+#     ax3.plot(precip.date_time, precip.precip_30min_in,label = "Precipitation (inches)")
+#     ax3.set_yticks((0,0.2,0.4,0.6))
+#     #plt.legend()
+#     #ax2.text(textx,0.5, "Precipitation (inches)",color='royalblue')
+#     myFmt = mdates.DateFormatter('%B %d')
+#     ax1.xaxis.set_major_formatter(myFmt)
+#     plt.subplots_adjust(hspace=0.0001)
+# 
+#     if(stitch == True): multipage('comb_plots')
+# =============================================================================
+    
+    
 
 #Turn this into something to turn these into PNG and THEN into a PDF
 #Pdf stitcher

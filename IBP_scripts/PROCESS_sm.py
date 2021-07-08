@@ -11,7 +11,7 @@ import os as os #data in/out package
 #raw_data_path = 'D:\Google Drive\Packman Group\Multifunctional Urban Green Spaces Research Project\IBP Project\Data from Field Tablet\SMP Data\\text files\\'
 #processed_data_path = 'D:\Google Drive\Packman Group\Multifunctional Urban Green Spaces Research Project\IBP Project\Documents\Data From SMP\\'
 raw_data_path = 'C:\Users\Packman-Field\Google Drive\Packman Group\Multifunctional Urban Green Spaces Research Project\IBP Project\Data from Field Tablet\SMP Data\\text files\\'
-processed_data_path = 'C:\Users\Packman-Field\Google Drive\Packman Group\Multifunctional Urban Green Spaces Research Project\IBP Project\Documents\Deprecated Data Folder\Data From SMP\\'
+processed_data_path = 'C:\Users\Packman-Field\Google Drive\Packman Group\Multifunctional Urban Green Spaces Research Project\IBP Project\Documents\Data From SMP\\'
 ###############################################################################
 
 filenames = os.listdir(raw_data_path)

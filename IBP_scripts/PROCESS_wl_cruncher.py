@@ -177,8 +177,6 @@ def leveltroll_populate():
 
             #This layer is on a file-by-file basis with a different new raw file being processed per step
             for newfile in new_files.files:
-                timesum = 0
-                timecount = 0
                 time1 = time.time()
                 print newfile
                 
@@ -231,9 +229,9 @@ def leveltroll_populate():
                     df_wl_all = df_wl_all[['date_time','run_time','pressure_pa','temperature_c','sensor_elev_m','depth_m','WS_elevation_m','qual_c']]
                     df_wl_all.to_csv(processed_data_path + processed_file,sep=',',index = False) ##saves processed data to csv
                     
-                time2 = time.time()
-                timesum = timesum + time2-time1
-                timecount = timecount + 1
+                    time2 = time.time()
+                    timesum = timesum + time2-time1
+                    timecount = timecount + 1
 
             #Add the newly-added files to the datafiles.csv file, so that they are not reprocessed (all new processed files at once)
             all_files = pd.read_csv(processed_data_path+'datafiles.csv',header = 0)

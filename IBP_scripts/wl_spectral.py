@@ -82,7 +82,7 @@ while rain_startind + step < len(rain_NOAA):
     y_detrend = scipy.signal.detrend(y)
     fmax = 10 * 365.25 * 24                 # 10 years
     fmin = 12.0              # 12 hours
-    frequency = np.linspace(1.0/fmax, 1.0/fmin, 1000000) #monthly to 10 year intervals, 1 million steps
+    frequency = np.linspace(1.0/fmax, 1.0/fmin, 1000000) #half-day to 10 year intervals, 1 million steps
     power = LombScargle(t,y_detrend).power(frequency)
     
     # Plot
@@ -97,20 +97,22 @@ while rain_startind + step < len(rain_NOAA):
     print("Max power in rain signal at: " + 
           "{0:0.4f}".format(annfreq) + " years")
 
-# New smoothing routine: LOWESS
-lowess_xy = sml.lowess(y,x,0.0005,delta = 0.0001*max(x))
-lowess_x = list(zip(*lowess_xy))[0]
-lowess_y = list(zip(*lowess_xy))[1]
-pd.DataFrame(lowess_xy).plot(x=0)
-pd.DataFrame([x,y]).transpose().plot(x=0)
-f = interp1d(lowess_x, lowess_y, bounds_error=False)
-xnew = range(int(x[0]),int(x[-1]),1800)
-ynew = f(xnew)
-plt.figure()
-plt.plot(x, y, 'o')
-plt.plot(lowess_x, lowess_y, '*')
-plt.plot(xnew, ynew, '-')
-plt.show()
+# =============================================================================
+# # New smoothing routine: LOWESS
+# lowess_xy = sml.lowess(y,x,0.0005,delta = 0.0001*max(x))
+# lowess_x = list(zip(*lowess_xy))[0]
+# lowess_y = list(zip(*lowess_xy))[1]
+# pd.DataFrame(lowess_xy).plot(x=0)
+# pd.DataFrame([x,y]).transpose().plot(x=0)
+# f = interp1d(lowess_x, lowess_y, bounds_error=False)
+# xnew = range(int(x[0]),int(x[-1]),1800)
+# ynew = f(xnew)
+# plt.figure()
+# plt.plot(x, y, 'o')
+# plt.plot(lowess_x, lowess_y, '*')
+# plt.plot(xnew, ynew, '-')
+# plt.show()
+# =============================================================================
 
 # LS on WL
 # Use this one to find the rollover point
@@ -228,6 +230,7 @@ def ls_well2(well_id):
     pn_log = pn_l[r_ind]
     regress = np.linalg.lstsq(A[r_ind],pn_log) #Slope, intercept of loglog regression
     mr, br = regress[0]
+    print(well_id + " slope: " + "{0:0.4f}".format(mr))
     #rsq2 = (1 - regress[1] / sum((pn_log - pn_log.mean())**2))[0]
     
     #Plot

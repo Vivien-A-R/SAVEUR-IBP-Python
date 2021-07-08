@@ -18,7 +18,7 @@ from scipy.interpolate import interp1d
 # Import data
 root_path = 'C:\Users\Packman-Field\Google Drive\Packman Group\Multifunctional Urban Green Spaces Research Project\IBP Project\\'
 data_path = root_path + 'Documents\Processed Water Level Data\\'
-processed_path = root_path + '\Documents\Water Level Derived Products\FilledSmoothed\\'
+processed_path = 'C:\Users\Packman-Field\Documents\Paper II\Water Data\\waterlevels\\'
 
 sensor_meta = pd.read_table(data_path+'wl_position_meta.csv',sep=',',index_col = None)
 
@@ -51,12 +51,14 @@ def fillgaps(sensor_id, avrange = 5):
             
             df_w.qual_c.iloc[l[0]-1:l[1]+1] = 2
             
+    df_w.run_time = df_w.run_time.astype(int)
     return df_w
     #n_rows, n_cols = df_w.shape
 
 # Smooth using rolling window of *window_size* measurements (consider other methods);
 def smooth_rect(df_w,window_size = 16):
-    print("Smoothing")
+    df_wr = df_w.copy()
+    print("Smoothing Rectangular")
     
     # Smooth data
     hw = window_size/2
@@ -67,11 +69,13 @@ def smooth_rect(df_w,window_size = 16):
                                       win_type='boxcar').mean()     # rolling mean boxcar filter to smooth data. 
     depth_mean[0:hw] = depth_mean[hw + 1]                           # handles the beginning points where the filter doesn't apply
     depth_mean[l - hw:l] = depth_mean[l - hw]                       # handles the final points where the filter doesn't apply
-    df_w['depth_m_smoothed'] = depth_mean                           # add to the dataframe.
+    df_wr['depth_m_smoothed'] = depth_mean                           # add to the dataframe.
 
-    return df_w
+    return df_wr
 
 def smooth_lowess(df_w):
+    df_wl = df_w.copy()
+    print("Smoothing Lowess")
     x = np.array(df_w['run_time'])
     y = np.array(df_w['depth_m'])
     lowess_xy = sml.lowess(y,x,0.0005,delta = 0.0001*max(x))
@@ -80,9 +84,9 @@ def smooth_lowess(df_w):
     xnew = range(int(x[0]),int(x[-1])+1800,1800)
     ynew = f(xnew)
     dfnew = pd.DataFrame(list(zip(xnew,ynew)),columns = ['run_time','depth_m_smoothed'])
-    df_w = df_w.merge(dfnew,on='run_time')
+    df_wl = df_wl.merge(dfnew,on='run_time')
 
-    return df_w
+    return df_wl
     
 
 #fig1, (ax1,ax2) = plt.subplots(2,1,sharex = True)
@@ -94,13 +98,15 @@ nfill = 5
 nsmooth = 8
 for sensor_id in s:
 
-    df = smooth_rect(fillgaps(sensor_id,nfill),nsmooth)
-    df.plot(x = 'date_time',y = ['depth_m','depth_m_smoothed'],title = sensor_id)
-    namestring = processed_path + sensor_id + '_f' + str(nfill) + "_s" + str(nsmooth) + ".csv"
-    df.to_csv(namestring ,index = None)
+    dff = fillgaps(sensor_id,nfill)
     
-    df = smooth_lowess(fillgaps(sensor_id,nfill))
-    df.plot(x = 'date_time',y = ['depth_m','depth_m_smoothed'],title = sensor_id)
+    dfr = smooth_rect(dff,nsmooth)
+    dfr.plot(x = 'date_time',y = ['depth_m','depth_m_smoothed'],title = sensor_id + " Rectangular")
+    namestring = processed_path + sensor_id + '_f' + str(nfill) + "_s" + str(nsmooth) + ".csv"
+    dfr.to_csv(namestring ,index = None)
+    
+    dfl = smooth_lowess(dff)
+    dfl.plot(x = 'date_time',y = ['depth_m','depth_m_smoothed'],title = sensor_id + " Lowess")
     namestring = processed_path + sensor_id + '_f' + str(nfill) + "_lowess" + ".csv"
-    df.to_csv(namestring ,index = None)
+    dfl.to_csv(namestring ,index = None)
     
