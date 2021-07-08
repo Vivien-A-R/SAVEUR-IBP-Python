@@ -6,7 +6,7 @@ Created on Thu Dec 07 12:26:16 2017
 """
 
 # -*- coding: utf-8 -*-
-from cdf_violin import cdf
+from cdf_violin2 import cdf
 import soiltype_to_numeric as sn
 
 import pandas as pd #pythons data/timeseries package
@@ -14,17 +14,14 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 ###### Data i/o steps, can be changed without affecting the code, code will need to be rewritten to reflect proper structure of actual data.
-data_path = 'C:\Users\Vivien\Dropbox\IBP_Python\scripts_and_filenames\\'
-#data_path = 'D:\IBP_Python\scripts_and_filenames\\'
+data_path = 'C:\Users\Packman-Field\Google Drive\Packman Group\Multifunctional Urban Green Spaces Research Project\IBP Project\Documents\Processed Water Level Data\\'
 
 #pd.set_option('expand_frame_repr', False)
 pd.set_option('max_colwidth',100)
 pd.options.display.max_rows = 20
 
 #Sensor/well metadata (for sample elevations)
-sensor_meta = pd.read_table(data_path+'raw_nt_data\\wl_position_meta.csv',sep=',',index_col=False)
-sensor_meta = pd.concat([sensor_meta,data_path+'processed_data2\\'+sensor_meta.sensor+"_ibp_main.csv"],axis=1)
-sensor_meta.columns=['data_id','top_elev_ft','cable_length_ft','ground_elev_ft','lat','long','path']
+
 
 df_soil_column = sn.gcf(1) #Get Coded dataFrame (from soiltype_to_numeric file)
                          

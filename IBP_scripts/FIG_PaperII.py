@@ -8,7 +8,6 @@ Created on Thu Nov 30 15:10:06 2017
 import pandas as pd
 import numpy as np
 
-#import seaborn.apionly as sns
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib as mpl

@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import numpy as np
 import scipy.stats as scs
-import scipy.optimize as sco
+#import scipy.optimize as sco
 from datetime import datetime
-from sklearn.decomposition import PCA
+#from sklearn.decomposition import PCA
 import warnings
 from scipy.optimize import OptimizeWarning
 

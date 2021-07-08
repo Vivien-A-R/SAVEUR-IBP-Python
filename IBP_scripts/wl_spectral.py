@@ -15,6 +15,7 @@ from astropy.stats import LombScargle
 import statsmodels.nonparametric.smoothers_lowess as sml
 from scipy.interpolate import interp1d
 
+# TODO: Update this for PII
 root_path = 'C:\Users\Packman-Field\Google Drive\Packman Group\Multifunctional Urban Green Spaces Research Project\IBP Project\Documents\\'
 data_path = root_path + 'Processed Water Level Data\\'
 rain_data = root_path + 'Precipitation\\'
