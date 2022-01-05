@@ -21,6 +21,7 @@ import warnings
 from scipy.optimize import OptimizeWarning
 
 warnings.simplefilter("ignore", OptimizeWarning)
+pd.set_option('display.max_columns', 500)
 
 # Import data
 root_path = 'C:\Users\Packman-Field\Google Drive\Packman Group\Multifunctional Urban Green Spaces Research Project\IBP Project\Documents\\'
@@ -41,23 +42,23 @@ def linr_func(x,m,b):
 col2 = cm.get_cmap("hsv")
 
 s = ["WLW1","WLW2","WLW3","WLW4","WLW5","WLW6","WLW7","WLW8","WLW9","WLW10","WLW12","WLW13"] #Figure out what's up with 14
-pt = 0.005
+#s = ["WLW10"]
 
-# TODO: Split into multiple functions
+pt = 0.002 #required threshold of slope in one timestep
 
-def peakstats(fs_suffix = 'f5_lowess', peak_thresh = 0.01):
+def peakstats(sensors = s, fs_suffix = 'f5_lowess', peak_thresh = 0.01):
 # Which filled smoothed variant do we want (should be created by running the smooth_lowess_rect.py script (integrate these function calls into current script or create a module to call from other script)) 
-    fig1, (ax1,ax2) = plt.subplots(2,1,sharex = True)
+    #fig1, (ax1,ax2) = plt.subplots(2,1,sharex = True)
     fig2, (ax3,ax4) = plt.subplots(2,1, sharex = True)
     
     dtable = []
     ftable = []
-    for sensor_id in s:
+    for sensor_id in sensors:
         print(sensor_id)
         df_w=pd.read_csv(paperII_path + "\\waterlevels\\" + sensor_id + '_' + fs_suffix + '.csv' , parse_dates=['date_time'])
     
         #Get rid of extra information
-        df_w.drop(['pressure_pa','temperature_c','qual_c','WS_elevation_m'],axis = 1, inplace = True)
+        df_w.drop(['pressure_pa','temperature_c','WS_elevation_m'],axis = 1, inplace = True)
         df_w.rename({'depth_m_smoothed':'depth_ave'}, axis = 1, inplace = True)
         n_rows, n_cols = df_w.shape
         
@@ -72,7 +73,7 @@ def peakstats(fs_suffix = 'f5_lowess', peak_thresh = 0.01):
         #pandas rolling window apply does NOT work here because this version it only takes one column. Boo.
         # TODO: Update Pandas version and rewrite this neatly
         
-        # Set up rolling window params
+        # Set up rolling window params to obtain slopes
         roll_ws = 8
         hws = roll_ws/2 # half the size of the window over which the regression will work.
         
@@ -91,76 +92,74 @@ def peakstats(fs_suffix = 'f5_lowess', peak_thresh = 0.01):
         df_w['d_depth_dt'] = txs[0,:]  
         
         df_w['peak'] = False
-        df_w['peak'] = np.where(df_w['d_depth_dt'] > peak_thresh, True, False) # Find the starts of peaks
+        df_w['peak'] = np.where(df_w['d_depth_dt'] > peak_thresh, True, False) # Find the starts of peaks based on slope, set True
         
         ind_peaks = []    
-        ind = 0;
-        tog = df_w['peak'][0]            #Toggle is the previous value
+        ind_a = 0;
+        tog = df_w['peak'][0]                   #Toggle is the previous value (bool), initially False
         
-        for index in range(len(df_w)):
-            check = df_w['peak'][index]  # Check is the current value
-            if check != tog:                # When a state change occurs
-                if tog == True:             # See whether we're coming off a peak and if so:
-                    temp_peak = [ind,index]     # Add this peak to the list of peaks 
+        for ind_b in range(len(df_w)):
+            check = df_w['peak'][ind_b]         # Check is the current value to be checked against tog
+            if check != tog:                    # When a state change occurs
+                if tog == True:                 # Previous values are from inside a peak
+                    temp_peak = [ind_a,ind_b]   # Add this peak to the list of peaks
                     ind_peaks = ind_peaks + [temp_peak]
                     tog = check                 # Indicate that we're now at baseline (tog = check = False)
-                if tog == False:            # If a state change occurs to come ONTO a peak
-                    ind = index                 # Save this position as the start of the peak
+                if tog == False:                # If a state change occurs to come ONTO a peak
+                    ind_a = ind_b               # Save this position as the start of the peak
                     tog = check                 # Set tog = check = True (we are now in a peak)
         
         df_peaks = pd.DataFrame(ind_peaks)
         df_peaks.columns = ['w_start','w_end'] # The dimensions of the rising limb or wetting limb of each peak
-        df_peaks['d_end'] = df_peaks['w_start'].shift(-1).fillna(df_peaks['w_end'].iloc[-1]).astype(int) # The end of the drying curve (falling limb)
-        # Now we have a dataframe of the peak start and end times from which we can extract some information
-        
+        df_peaks['d_end'] = df_peaks['w_start'].shift(-1).fillna(df_peaks['w_end'].iloc[-1]).astype(int) # The end of the drying curve (falling limb) including dry tails
+       # Now we have a dataframe of the peak start and end times from which we can extract some information
+
         subset = df_peaks[['w_start','w_end','d_end']]
-        tuples = [x for x in subset.values.tolist()]
-        # Now we have a list of lists containing the wetting start, wetting end, drying end (in that order)
+        tuples = [x for x in subset.values.tolist()]    # Now we have a list of lists containing the wetting start, wetting end, drying end (in that order)
+        print(str(len(tuples)) + " peaks found")        
         
         #Analyzing and plotting peaks
-        print(str(len(tuples)) + " peaks found")
-        
         print("Analyze peaks")
         
         for peak_inds in tuples[0:-2]:
             
-            snip = df_w[['date_time','run_time','depth_ave','sensor_elev','d_depth_dt']].loc[peak_inds[0]:peak_inds[2]].copy()
-            
-            y_peak = snip.depth_ave.loc[peak_inds[1]] # Water depth of identified peak
+            snip = df_w[['date_time','run_time','depth_ave','sensor_elev_m','d_depth_dt']].loc[peak_inds[0]:peak_inds[2]].copy()
+            snip = snip[snip.depth_ave > 0.05]
             y_max = snip.depth_ave.max() # Max water depth over interval
-            y_error = y_peak - y_max # Vertical difference between algorithmically-identified "peak" and max value in range
             
-            x_peak = snip.run_time.loc[peak_inds[1]] # 
-            x_ymx = snip.run_time.loc[snip['depth_ave'] == y_max].iloc[0].item() # Time of max y
-            x_error = (x_peak-x_ymx)/(3600*24) # Time difference between algorithmically-identified "peak" and time of max y
-
-            if (x_error < 20 and x_error > -20 and y_error > -0.5): # Skip the lumpy peaks           
+            if (len(snip) > 48 and y_max < 1): #more than 24 hours and gw only
+                y_peak = snip.depth_ave.loc[peak_inds[1]] # Water depth of identified peak
+                y_error = y_peak - y_max # Vertical difference between algorithmically-identified "peak" and max value in range
                 
-                snip = snip.reset_index(drop=True)
+                x_peak = snip.run_time.loc[peak_inds[1]] # 
+                x_ymx = snip.run_time.loc[snip['depth_ave'] == y_max].iloc[0].item() # Time of max y
+                x_error = (x_peak-x_ymx)/(3600*24) # Time difference between algorithmically-identified "peak" and time of max y
+    
+                if (x_error < 20 and x_error > -20 and y_error > -0.2): # Skip the lumpy peaks           
+                    
+                    snip = snip.reset_index(drop=True)
+                    
+                    y_0 = snip.depth_ave.iloc[0]
+                    y_min = snip.depth_ave.min()
+                    y_sensor = snip.sensor_elev_m.iloc[0]
+                    
+                    x_0 = snip.run_time.iloc[0] # First time step in peak
+                    x_0_datetime = snip.date_time.iloc[0] # Datetime of first time step in peak
+                    x_max = snip.run_time.max() # Last time step in peak
+                    x_day = x_0_datetime.dayofyear/365.0
+                    
+                    drow = ([sensor_id] + 
+                            [x_0,x_0_datetime,x_max,x_peak,x_ymx,x_day] + 
+                            [y_sensor] + [y_0,y_peak,y_max,y_min])
+                    dtable = dtable + [drow]
+                    
+                    snip['rt_norm1'] = (snip.run_time - x_0)    # x at the origin
+                    snip['depth_norm2'] = (snip.depth_ave - y_peak) # peak (x,y) at the origin
+                    snip['rt_norm2'] = (snip.run_time - x_peak) # peak (x,y) at the origin
+                    
+                    ax3.plot(snip['rt_norm1']/(3600*24),snip['depth_ave'],color = col2(x_day),alpha = 0.5)
+                    ax4.plot(snip['rt_norm2']/(3600*24),snip['depth_norm2'],color = col2(x_day), alpha = 0.5)
                 
-                y_0 = snip.depth_ave.iloc[0]
-                y_min = snip.depth_ave.min()
-                y_sensor = snip.sensor_elev.iloc[0]
-                
-                x_0 = snip.run_time.iloc[0] # First time step in peak
-                x_0_dt = snip.date_time.iloc[0] # Datetime of first time step in peak
-                x_max = snip.run_time.max() # Last time step in peak
-                x_day = x_0_dt.dayofyear/365.0
-                
-                drow = ([sensor_id] + 
-                        [x_0,x_0_dt,x_max,x_peak,x_ymx,x_day] + 
-                        [y_sensor] + [y_0,y_peak,y_max,y_min])
-                
-                dtable = dtable + [drow]
-
-                # x and y at the origin so that they all start at the same place
-                snip['depth_norm1'] = (snip.depth_ave - y_0)
-                snip['rt_norm1'] = (snip.run_time - x_0)
-                
-                # peak (x,y) at the origin
-                snip['depth_norm2'] = (snip.depth_ave - y_peak)
-                snip['rt_norm2'] = (snip.run_time - x_peak)
-            
 # =============================================================================
 #                 # Regression: expn_func (y = a^x + b) , powr_func(y = k*x^n + b), linr_func (y = mx+b)
 #                 
@@ -171,17 +170,8 @@ def peakstats(fs_suffix = 'f5_lowess', peak_thresh = 0.01):
 #                 frow = [r_popt,r_pcov,f_popt,f_pcov]
 #                 ftable = ftable + [frow]
 # =============================================================================
-                
 
-                ax1.plot(snip['date_time'],snip['depth_ave'],color = col2(x_day)) 
-                ax2.plot(snip['date_time'],snip['d_depth_dt'],color = col2(x_day))
-                ax3.plot(snip['rt_norm1']/(3600*24),snip['depth_ave'],color = col2(x_day),alpha = 0.5)
-                ax4.plot(snip['rt_norm2']/(3600*24),snip['depth_norm2'],color = col2(x_day), alpha = 0.5)
-
-        ax1.set_title(label = 'smoothed depth')
-        ax2.set_title(label = 'first derivative of depth')
-        
-        print("Lumpy peaks removed, " + str(len(dtable)) + " total peaks analyzed")
+        print("Screened and tidied, " + str(len(dtable)) + " total peaks analyzed")
         print("\n")
         
     df_peakstats = pd.DataFrame(dtable)
@@ -194,10 +184,6 @@ def peakstats(fs_suffix = 'f5_lowess', peak_thresh = 0.01):
     return df_peakstats, df_fitstats
 
 df_p,df_f = peakstats(peak_thresh = pt)
-
-#df_falling_params = pd.DataFrame(np.vstack(df_f.falling_params.values), columns=['falling_a','falling_b'])
-
-#pd.concat([df_p, df_rising_params,df_falling_params],axis=1)
 
 df_p.to_csv(paperII_path + "peakstats_thresh " + str(pt) + "m.csv")
 

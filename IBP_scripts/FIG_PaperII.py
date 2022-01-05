@@ -45,7 +45,9 @@ d_path = "C:\Users\Packman-Field\Documents\Paper II\Water Data\\"
 metadata = pd.read_csv(d_path + "waterlevels\\" + 'wl_position_meta.csv')
 bl = sn.gcf(1)
 
-well_ch = "WLW12"
+well_ch = "WLW3"
+surf_ch = "WLS2"
+
 
 def data_ret(resample_rate = "D"):
     #Example plotting with a chosen time series
@@ -90,6 +92,37 @@ a,b,c = data_ret("D") #precip, groundwater, soil moisture resampled to daily
 merged = pd.merge(a, b)
 merged = pd.merge(merged, c)
 
+def surfaceplot(resample_rate = "D"):
+    f, (ax1,ax2,ax3) = plt.subplots(3, sharex=True,figsize = [14,10],gridspec_kw = {'height_ratios':[1,3,3]})
+    #Raw rain signal
+    ax1.plot(merged.date_time,merged.precip_cm,drawstyle = "steps",color = "black")
+    ax1.set_ylim([12,0])
+    
+    surf_ch = "WLS2"
+    sw = pd.read_csv(d_path + "waterlevels\\" + surf_ch + "_4yr.csv",parse_dates = ['date_time'])
+    sw.loc[sw.qual_c < 1,"WS_elevation_m"]=np.nan #Skip qc-flagged values
+    sw_res= sw[['date_time','WS_elevation_m']].set_index('date_time').WS_elevation_m.resample(resample_rate).mean().to_frame().reset_index()
+
+    ax2.plot(sw_res['date_time'],sw_res['WS_elevation_m'])
+    ax2.plot(sw['date_time'],sw['sensor_elev_m'])
+    ax2.yaxis.get_major_formatter().set_scientific(False)    
+    
+    surf_ch = "WLS8"
+    sw = pd.read_csv(d_path + "waterlevels\\" + surf_ch + "_4yr.csv",parse_dates = ['date_time'])
+    sw.loc[sw.qual_c < 1,"WS_elevation_m"]=np.nan #Skip qc-flagged values
+    sw_res= sw[['date_time','WS_elevation_m']].set_index('date_time').WS_elevation_m.resample(resample_rate).mean().to_frame().reset_index()
+    
+    ax3.plot(sw_res['date_time'],sw_res['WS_elevation_m'])
+    ax3.plot(sw['date_time'],sw['sensor_elev_m'])
+    ax3.yaxis.get_major_formatter().set_scientific(False)    
+
+    f.subplots_adjust(hspace=0)
+    plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
+    
+    return sw_res
+
+    
+
 def stackplot():
     gelev = metadata[metadata.sensor == well_ch].ground_elev_ft.iloc[0]*0.3048
        
@@ -99,6 +132,8 @@ def stackplot():
     fb['elevation_m'] = gelev - (fb['depth_cm'])/100
     
     f, (ax3,ax2,ax1) = plt.subplots(3, sharex=True,figsize = [14,10],gridspec_kw = {'height_ratios':[1,3,3]})
+    f.subplots_adjust(hspace=0)
+    plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
     #SM
     lw = 2
     ax1.plot(merged['date_time'],merged['VWC%_10cm'],color = color_column[0],dashes=[1,1],linewidth = lw,label = '10cm')
@@ -108,12 +143,9 @@ def stackplot():
     ax1.plot(merged['date_time'],merged['VWC%_80cm'],color = color_column[1],dashes=[8,1],linewidth = lw,label = '80cm')
     ax1.plot(merged['date_time'],merged['VWC%_100cm'],color = color_column[1],dashes=[12,1],linewidth = lw,label = '100cm')
     ax1.legend(handlelength = 3,prop={'size': 12},bbox_to_anchor=(1,0.6))
-    
-    
+       
     #Raw groundwater signal
     ax2.plot(merged['date_time'],merged['WS_elevation_m'],color = 'black')
-    f.subplots_adjust(hspace=0)
-    plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
     handles = map(lambda x: color_column[int(sn.soil_codes(x))-1],labels)
     leg = map(lambda labels, handles: patches.Patch(color = handles, label = labels), labels, handles)
     ax2.legend(handles = leg,prop={'size': 12},bbox_to_anchor=(1,0.6))
@@ -130,8 +162,6 @@ def stackplot():
         c = int(fb[well_ch].iloc[i]-1)
         ax2.axhspan(top,bottom,alpha = 0.3,color = color_column[c],edgecolor = None)
         i = i+1
-        
-    return merged
 
 
 #To do: adjust to do wet/dry instead of months.    
@@ -156,29 +186,40 @@ def transplot():
     
     fig1, ax1 = plt.subplots(figsize = (12,8)) ##defining the figure
     ax1.xaxis.set_visible(False) #Hide x-axis because it's physically meaningless
-     
-    for well in xloc_dict: 
-        #Do columns
-        #These are the same every row
-        #ground_elev = metadata[metadata.sensor == well].ground_elev_ft.iloc[0]*0.3048
+    wellstats = [] 
+    
+    for well in xloc_dict:
+        #Position on the transect
         xloc = xloc_dict[well]
-        xwid = 0.10*(xmax-xmin)/len(xloc_dict)
-        #ywid = 0.01*2.54 #one inch
         
-        #Do violins
-        all_data = cdf(well)
+        #How wide is the plot allowed to be (without bumping into a neighbor)
+        xwid = 0.5*(xmax-xmin)/len(xloc_dict)
+        
+        #Do violins, no normal dist fit
+        gw_temp = pd.read_csv(d_path + "waterlevels\\" + well + "_4yr.csv",parse_dates = ['date_time'])
+        gw_temp.loc[gw_temp.qual_c < 1,"WS_elevation_m"]=np.nan #Skip qc-flagged values
+        gw_temp = gw_temp[['date_time','WS_elevation_m']]
+        gw_res_temp= gw_temp.set_index('date_time').WS_elevation_m.resample("H").mean() #Hourly-resampled time-series with all error-flagged values nan'd
+
+        all_data = gw_res_temp.dropna() #hourly-resampled time series with no gaps
+        
         wi = all_data[all_data.index.month.isin([1,2,3])]
         sp = all_data[all_data.index.month.isin([4,5,6])]
         su = all_data[all_data.index.month.isin([7,8,9])]
         fa = all_data[all_data.index.month.isin([10,11,12])]
+        #These are of uneven size
         
-        #Fiddled with by hand; need to find better way to determine these
-        bigw = xwid*6
-        wiw = bigw*0.40
-        spw = bigw*0.40
-        suw = bigw*0.40
-        faw = bigw*0.40
-        salpha = 0.6
+        a_l, wi_l, sp_l, su_l, fa_l = len(gw_res_temp),len(wi),len(sp),len(su),len(fa)
+        wellstats = wellstats + [[well, a_l, wi_l, sp_l, su_l, fa_l]]
+        #Record the sizes
+        
+        #Use number of observations to scale each plot 
+        bigw = xwid*len(all_data)/a_l
+        wiw = xwid*wi_l/a_l*4
+        spw = xwid*sp_l/a_l*4
+        suw = xwid*su_l/a_l*4
+        faw = xwid*fa_l/a_l*4
+        salpha = 0.4
         
         scolors = ['lightskyblue','yellowgreen','coral','gold','grey']
         slabels = ['winter','spring','summer','fall','total']
@@ -240,6 +281,7 @@ def transplot():
 
     ax1.legend(handles=handles, labels=labels)  
     ax1.set_ylabel("Elevation (m above MSL)")
+    return pd.DataFrame(wellstats,columns = ["well","datapoints","winter","spring","summer","fall"])
     
 def sm_heatmap(p = '2'):    
     df_sm = c.copy()
@@ -258,7 +300,8 @@ def sm_heatmap(p = '2'):
     mask = df_mod.isnull()
     df_mod.replace(100,np.nan,inplace=True)
     df_mod.interpolate(method='index',inplace = True)
-    
+
+#TODO: https://stackoverflow.com/questions/40925458/date-axis-in-heatmap-seaborn    
     f_sm = plt.figure()
     sns.heatmap(df_mod, mask = mask,vmin = 0, vmax = 60,cmap="YlGnBu", xticklabels = 60, cbar_kws = {'label':'Soil moisture (%VWC)'})
     f_sm.autofmt_xdate()
@@ -272,6 +315,7 @@ def peakstat_plot():
     df_peaks = pd.read_csv(d_path + "peakstats_thresh 0.01m.csv", index_col = 0, parse_dates = ['x_0_dt'])
     precip = a.copy()
     preceeding_rain_days = 2
+
     
     
     
