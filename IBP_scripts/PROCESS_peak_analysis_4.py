@@ -46,11 +46,84 @@ s = ["WLW1","WLW2","WLW3","WLW4","WLW5","WLW6","WLW7","WLW8","WLW9","WLW10","WLW
 
 pt = 0.002 #required threshold of slope in one timestep
 
+fig2, (ax3,ax4) = plt.subplots(2,1, sharex = True)
 
+# Takes a Pandas dataframe, returns list of tuples representing the indices of peaks in that data frame
+def peakfind():
+    # Dummy data (WLW5) remove this line later and move to function arguments
+    df_w=pd.read_csv(paperII_path + "\\waterlevels\\" + "WLW5" + '_' + fs_suffix + '.csv' , parse_dates=['date_time'])
+    #Get rid of extra information
+    df_w.drop(['pressure_pa','temperature_c','WS_elevation_m'],axis = 1, inplace = True)
+    df_w.rename({'depth_m_smoothed':'depth_ave'}, axis = 1, inplace = True)
+    n_rows, n_cols = df_w.shape
+    
+    print("Finding peaks")
+    # Find peaks
+    #def sl(oneroll):
+    #    #do regression on the rolling window
+    #    return slope
+    #rolls = df_w[['run_time','depth_ave']].rolling(window = 8,center = True)
+    #df_w['slope'] = rolls.apply(sl)
+    #pandas rolling window apply does NOT work here because in this package version it only takes one column. Boo.
+    # TODO: Update Pandas version and rewrite this neatly
+    
+    # Set up rolling window params to obtain slopes
+    roll_ws = 8
+    hws = roll_ws/2 # half the size of the window over which the regression will work.
+    
+    # First derivative
+    txs=np.zeros(shape=[1,n_rows]) #temporary storage variable for the slope
+    txm=np.zeros(shape=[1,n_rows]) #temporary storage variable for the mean
+    
+    for n in range(hws, n_rows - hws): ##
+        temp_regress_y = df_w.depth_ave[n-hws:n+hws] #selects data to regress
+        temp_regress_x = df_w.run_time[n-hws:n+hws] # x-coordinates for regression
+        slope, intercept, r_value, p_value, std_err = scs.linregress(temp_regress_x/(60.0**2),temp_regress_y) #linear regression
+        txs[0,n] = slope #stores the slope variable (the first derivative)
+        txm[0,n] = np.mean(temp_regress_y) #change this to another statistic to calculate different rolling variables (standard deivation, percentiles, etc)
+    txs[0,0:hws] = txs[0,hws] #handles the beginning points (sets them to the first processed point)
+    txs[0,n_rows-hws:n_rows] = txs[0,n_rows-hws] #handles the end points (sets them to the last processed point)
+    df_w['d_depth_dt'] = txs[0,:]  
+    
+    df_w['peak'] = False
+    df_w['peak'] = np.where(df_w['d_depth_dt'] > peak_thresh, True, False) # Find the starts of peaks based on slope, set True
+    
+    ind_peaks = []    
+    ind_a = 0;
+    tog = df_w['peak'][0]                   #Toggle is the previous value (bool), initially False
+    
+    for ind_b in range(len(df_w)):
+        check = df_w['peak'][ind_b]         # Check is the current value to be checked against tog
+        if check != tog:                    # When a state change occurs
+            if tog == True:                 # Previous values are from inside a peak
+                temp_peak = [ind_a,ind_b]   # Add this peak to the list of peaks
+                ind_peaks = ind_peaks + [temp_peak]
+                tog = check                 # Indicate that we're now at baseline (tog = check = False)
+            if tog == False:                # If a state change occurs to come ONTO a peak
+                ind_a = ind_b               # Save this position as the start of the peak
+                tog = check                 # Set tog = check = True (we are now in a peak)
+    
+    df_peaks = pd.DataFrame(ind_peaks)
+    df_peaks.columns = ['w_start','w_end'] # The dimensions of the rising limb or wetting limb of each peak
+    df_peaks['d_end'] = df_peaks['w_start'].shift(-1).fillna(df_peaks['w_end'].iloc[-1]).astype(int) # The end of the drying curve (falling limb) including dry tails
+   # Now we have a dataframe of the peak start and end times from which we can extract some information
+
+    subset = df_peaks[['w_start','w_end','d_end']]
+    tuples = [x for x in subset.values.tolist()]    # Now we have a list of lists containing the wetting start, wetting end, drying end (in that order)
+    print(str(len(tuples)) + " peaks found")        
+    
+    return tuples
+
+def peakparams():
+    dtable = []
+    
+def peakfit():
+    dtable = []
+
+# Splitting this into separate functions
 def peakstats(sensors = s, fs_suffix = 'f5_lowess', peak_thresh = 0.01):
-# Which filled smoothed variant do we want (should be created by running the smooth_lowess_rect.py script (integrate these function calls into current script or create a module to call from other script)) 
+    # Which filled smoothed variant do we want (should be created by running the smooth_lowess_rect.py script (integrate these function calls into current script or create a module to call from other script)) 
     #fig1, (ax1,ax2) = plt.subplots(2,1,sharex = True)
-    fig2, (ax3,ax4) = plt.subplots(2,1, sharex = True)
     
     dtable = []
     ftable = []

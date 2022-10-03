@@ -63,20 +63,23 @@ ps_choice = ps_antecedent[["ttp_hr","rise_peak_m","elev_init_m","top50","P24hr_c
 
 sns.pairplot(ps_antecedent[["elev_init_m","rise_peak_m","sensor_id","x_day"]], 
              hue = "sensor_id", hue_order = s, palette = "rocket")
+
+plt.figure()
 sns.scatterplot(x = "elev_init_m", y = "rise_peak_m",data = ps_choice, 
              s = 200, hue = "sensor_id", hue_order = s, palette = "rocket", alpha = 0.8)
 plt.legend(bbox_to_anchor=(1.0, 1), loc=2, borderaxespad=0.)
 
+plt.figure()
 sns.scatterplot(x = "top50", y = "ttp_hr",data = ps_choice, 
              s = 200, hue = "group", hue_order = ["wetland","ridge","upland"], alpha = 0.8)
 plt.legend(bbox_to_anchor=(1.0, 1), loc=2, borderaxespad=0.)
 
-plt.Figure()
+plt.figure()
 sns.scatterplot(x = "P24hr_cm", y = "rise_peak_m",data = ps_choice, 
              s = 200, hue = "group", hue_order = ["wetland","ridge","upland"], alpha = 0.8)
 plt.legend(bbox_to_anchor=(1.0, 1), loc=2, borderaxespad=0.)
 
-
+plt.figure()
 sns.scatterplot(x = "x_day", y = "elev_init_m",data = ps_choice, 
              s = 200, hue = "group",hue_order = ["wetland","ridge","upland"], alpha = 0.8)
 plt.legend(bbox_to_anchor=(1.0, 1), loc=2, borderaxespad=0.)
